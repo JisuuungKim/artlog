@@ -1,0 +1,15 @@
+<svg 
+          width="16" 
+          height="16" 
+          viewBox="0 0 16 16" 
+          fill="none"
+          className="text-greyscale-border-300 hover:text-greyscale-text-disabled-500 transition-colors"
+        >
+          <circle cx="8" cy="8" r="7" fill="currentColor"/>
+          <path 
+            d="M10.5 5.5L5.5 10.5M5.5 5.5L10.5 10.5" 
+            stroke="white" 
+            strokeWidth="1.2" 
+            strokeLinecap="round"
+          />
+        </svg>

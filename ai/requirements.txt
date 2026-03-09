@@ -1,0 +1,17 @@
+# ─── Web Framework ───────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# ─── LangGraph & LangChain ───────────────────────────────────
+langgraph==0.2.56
+langchain-core==0.3.28
+langchain-openai==0.2.14        # 실제 LLM 호출 시 사용 (선택사항)
+
+# ─── PostgreSQL (psycopg3) & LangGraph Checkpointer ──────────
+psycopg[binary,pool]==3.2.3
+langgraph-checkpoint-postgres==2.0.9
+
+# ─── Settings & Env ──────────────────────────────────────────
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-dotenv==1.0.1

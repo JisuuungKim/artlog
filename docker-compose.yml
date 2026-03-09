@@ -1,0 +1,53 @@
+services:
+  # 1. PostgreSQL DB 서비스
+  db:
+    image: postgres:15-alpine
+    container_name: artlog-db
+    restart: always
+    environment:
+      POSTGRES_USER: artlog_user
+      POSTGRES_PASSWORD: artlog_password
+      POSTGRES_DB: artlog_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./back/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artlog_user -d artlog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 2. Spring Boot 애플리케이션 서비스
+  app:
+    build: ./back
+    container_name: artlog-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./back/.env
+
+  # 3. AI Agent 서비스 (FastAPI + LangGraph)
+  ai:
+    build: ./ai
+    container_name: artlog-ai
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./ai/.env
+    restart: on-failure
+
+  # 4. Frontend 서비스 (추후 추가)
+  # front:
+  #   build: ./front
+  #   container_name: artlog-front
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - app

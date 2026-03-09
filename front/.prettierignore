@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Production
+dist/
+build/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+
+# Cache directories
+.cache/
+.vscode/
+.DS_Store
+
+# Generated files
+coverage/
+.nyc_output/
+
+# Lock files
+package-lock.json
+yarn.lock

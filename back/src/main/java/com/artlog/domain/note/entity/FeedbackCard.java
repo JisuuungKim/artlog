@@ -1,11 +1,8 @@
 package com.artlog.domain.note.entity;
 
 import com.artlog.global.entity.BaseTimeEntity;
-import com.artlog.global.type.FeedbackCardContent;
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Type;
 
 @Entity
 @Table(name = "feedback_card")
@@ -20,13 +17,12 @@ public class FeedbackCard extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "note_id", nullable = false)
-    private Note note;
+    @JoinColumn(name = "feedback_keyword_id", nullable = false)
+    private FeedbackKeyword feedbackKeyword;
 
-    /**
-     * 피드백 카드 내용 (JSONB) — {title: String, content: List<String>} 형식
-     */
-    @Type(JsonType.class)
-    @Column(name = "content", nullable = false, columnDefinition = "jsonb")
-    private FeedbackCardContent content;
+    @Column(name = "title", nullable = false, length = 255)
+    private String title;
+
+    @Column(name = "content", columnDefinition = "TEXT", nullable = false)
+    private String content;
 }

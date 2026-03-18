@@ -1,8 +1,8 @@
 """
 LangGraph 워크플로우 정의.
 
-3단계 파이프라인:
-  analyze_node → summarize_node → write_lesson_note_node
+4단계 파이프라인:
+  stt → correction → planner → executor
 
 각 노드는 현재 placeholder 구현으로 작성되어 있습니다.
 실제 LLM 호출 로직을 추가할 준비가 된 구조입니다.
@@ -14,7 +14,6 @@ LangGraph 워크플로우 정의.
 """
 
 import logging
-from typing import Any
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -22,66 +21,16 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.core.config import get_settings
 from app.graph.state import AgentState
+from app.graph.nodes.stt_agent import stt_node
+from app.graph.nodes.correction_agent import correction_node
+from app.graph.nodes.lesson_note_agent import (
+    feedback_analysis_node,
+    category_classification_node,
+    generate_lesson_note_node,
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-
-
-# ────────────────────────────────────────────────────────────────
-# 노드 정의 (Placeholder)
-# ────────────────────────────────────────────────────────────────
-
-async def analyze_node(state: AgentState) -> dict[str, Any]:
-    """
-    1단계: 원본 레슨 텍스트를 분석합니다.
-
-    TODO: 실제 LLM 호출로 대체하세요.
-    예시)
-        from langchain_openai import ChatOpenAI
-        llm = ChatOpenAI(model="gpt-4o-mini")
-        result = await llm.ainvoke([HumanMessage(content=state["raw_content"])])
-        return {"analysis_result": result.content}
-    """
-    logger.info("[analyze_node] user_id=%s", state.get("user_id"))
-
-    # --- Placeholder 구현 ---
-    analysis_result = f"[분석 완료] 원본 텍스트 길이: {len(state['raw_content'])}자"
-    return {"analysis_result": analysis_result}
-
-
-async def summarize_node(state: AgentState) -> dict[str, Any]:
-    """
-    2단계: 분석 결과를 요약합니다.
-
-    TODO: 실제 LLM 호출로 대체하세요.
-    """
-    logger.info("[summarize_node] user_id=%s", state.get("user_id"))
-
-    # --- Placeholder 구현 ---
-    summary_result = f"[요약 완료] {state['analysis_result'][:50]}..."
-    return {"summary_result": summary_result}
-
-
-async def write_lesson_note_node(state: AgentState) -> dict[str, Any]:
-    """
-    3단계: 최종 레슨노트 JSON 을 작성합니다.
-
-    TODO: 실제 LLM 호출로 대체하세요.
-    반환값의 `lesson_note` 키가 API 응답의 `lesson_note` 필드가 됩니다.
-    """
-    logger.info("[write_lesson_note_node] user_id=%s", state.get("user_id"))
-
-    # --- Placeholder 구현 ---
-    lesson_note: dict[str, Any] = {
-        "title": "레슨 노트 (생성됨)",
-        "user_id": state["user_id"],
-        "session_id": state["session_id"],
-        "key_points": ["핵심 포인트 1", "핵심 포인트 2"],
-        "summary": state["summary_result"],
-        "action_items": ["다음 레슨 전까지 복습"],
-        "raw_content_preview": state["raw_content"][:100],
-    }
-    return {"lesson_note": lesson_note}
 
 
 # ────────────────────────────────────────────────────────────────
@@ -92,16 +41,25 @@ def _build_graph() -> StateGraph:
     """엣지와 노드가 연결된 컴파일 전 StateGraph 를 반환합니다."""
     builder = StateGraph(AgentState)
 
-    builder.add_node("analyze", analyze_node)
-    builder.add_node("summarize", summarize_node)
-    builder.add_node("write_lesson_note", write_lesson_note_node)
+    builder.add_node("stt", stt_node)               # 1. STT
+    builder.add_node("correction", correction_node) # 2. 텍스트 보정
+    builder.add_node("feedback_analysis", feedback_analysis_node) # 3. 피드백 심층 분석
+    builder.add_node("category_classification", category_classification_node) # 4. 피드백 카테고리화
+    builder.add_node("lesson_note", generate_lesson_note_node) # 5. 레슨노트 생성
 
-    builder.set_entry_point("analyze")
-    builder.add_edge("analyze", "summarize")
-    builder.add_edge("summarize", "write_lesson_note")
-    builder.add_edge("write_lesson_note", END)
+    builder.set_entry_point("stt")
+    builder.add_edge("stt", "correction")
+    builder.add_edge("correction", "feedback_analysis")
+    builder.add_edge("feedback_analysis", "category_classification")
+    builder.add_edge("category_classification", "lesson_note")
+    builder.add_edge("lesson_note", END)
 
     return builder
+
+
+def build_graph() -> StateGraph:
+    """외부에서 그래프 구조(컴파일 전)를 접근할 수 있도록 공개합니다."""
+    return _build_graph()
 
 
 # ────────────────────────────────────────────────────────────────

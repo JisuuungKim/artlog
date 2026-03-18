@@ -1,30 +1,67 @@
-from typing import Annotated, Any
-from typing_extensions import TypedDict
-from langgraph.graph.message import add_messages
+from typing import TypedDict, List, Optional
+from pydantic import BaseModel, Field
 
 
+# ── 1. 파이프라인 중간 모델 (피드백 심층 분석) ───────────────────────
+
+class AnalyzedFeedback(BaseModel):
+    """feedback_analysis_node 출력 단위"""
+    teacher_quote: str = Field(description="선생님 피드백 원문")
+    related_lyrics: Optional[str] = Field(description="관련된 가사 (있을 경우)")
+    feedback_analysis: str = Field(description="선생님 피드백 내용 문맥 기반 분석 (50자 이내)")
+
+
+class FeedbackCategory(BaseModel):
+    """category_classification_node 출력 단위"""
+    category_name: str = Field(description="카테고리 명")
+    category_analysis: str = Field(description="카테고리 심층 분석 내용 (100자 내외)")
+    feedbacks: List[AnalyzedFeedback] = Field(description="해당 카테고리에 속하는 피드백 목록")
+
+
+# ── 2. 최종 레슨 노트 형태 ──────────────────────────────────────────
+
+class FeedbackCard(BaseModel):
+    feedback_keyword_id: str
+    title: str
+    content: str
+
+
+class LyricsFeedback(BaseModel):
+    line_text: str
+    feedback_title: str
+    problem_text: str
+    solution_text: str
+
+
+class Keyword(BaseModel):
+    feedback_keyword_id: str
+    feedback_keyword_name: str
+
+
+class TitleContent(BaseModel):
+    title: str
+    content: str
+
+
+class LessonNoteResponse(BaseModel):
+    key_feedback: List[TitleContent] = Field(description="예시) title: 소리의 위치 생각하기 / content: 소리의 위치를 뒤로 빼지 말고 앞쪽으로 더 붙여서 뻗어내기")
+    practice_guide: List[TitleContent] = Field(description="예시) title: 호흡 채우고 공간 유지하기 / content: 정수리까지 호흡을 가득 채우고 공간을 유지하며 내뱉기")
+    next_assignment: List[str] = Field(description="예시) 공간만 넓게 쓰는 것이 아니라 딕션으로 소리의 밀도를 채우는 감각 익혀오기.")
+    feedback_card: List[FeedbackCard] = Field(description="예시) title: 목표 음보다 높은 호흡 채우기 / content: 현재 내야 하는 음보다 한두 음 더 높은 음을 낸다고 생각하고 호흡을 넉넉히 채워야 소리가 안정적으로 나온다.")
+    lyrics_feedback: List[LyricsFeedback] = Field(description="예시) line_text: 내가 술래가 되면 / feedback_title: '돼' 를 더 모아서 발음하기 / problem_text: '돼' 발음이 너무 벌어짐 / solution_text: '돼'를 '도해'라고 생각하고 더 모아서 발음할 것")
+
+
+# ── 3. LangGraph State ───────────────────────────────────────────────
 class AgentState(TypedDict):
-    """
-    LangGraph 워크플로우 전반에서 공유되는 에이전트 상태.
+    song_title: List[str]
+    keywords: List[Keyword]
+    audio_path: str                             # 입력: 녹음 파일 경로
+    transcripts: List[str]                      # stt_node 출력 (청크 단위 분리)
 
-    각 노드는 여기에 정의된 키를 읽고 업데이트된 값을 반환합니다.
-    `messages` 키는 langgraph 내장 reducer(`add_messages`)를 사용하여
-    대화 기록을 누적합니다.
-    """
+    # 5단계 파이프라인 매개 상태
+    analyzed_feedbacks: List[AnalyzedFeedback]
+    feedback_categories: List[FeedbackCategory]
 
-    # ── 입력 (요청에서 주입) ───────────────────────────────────────
-    user_id: str
-    session_id: str
-    raw_content: str
-
-    # ── 1단계: 분석 결과 ──────────────────────────────────────────
-    analysis_result: str
-
-    # ── 2단계: 요약 결과 ──────────────────────────────────────────
-    summary_result: str
-
-    # ── 3단계: 최종 레슨노트 (JSON 구조) ──────────────────────────
-    lesson_note: dict[str, Any]
-
-    # ── 대화 기록 (LangGraph reducer 사용) ────────────────────────
-    messages: Annotated[list, add_messages]
+    lesson_note: Optional[LessonNoteResponse]   # 최종 결과물
+    errors: List[str]
+    retry_count: int

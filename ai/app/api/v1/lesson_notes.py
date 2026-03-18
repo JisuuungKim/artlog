@@ -9,7 +9,7 @@ router = APIRouter()
     response_model=LessonNoteResponse,
     summary="레슨노트 생성",
     description=(
-        "원본 레슨 텍스트를 분석·요약하고 구조화된 레슨노트 JSON을 반환합니다. "
+        "오디오 파일을 STT → 보정 → 레슨노트 생성 파이프라인으로 처리합니다. "
         "`session_id` 를 LangGraph `thread_id` 로 사용하여 세션 간 맥락이 유지됩니다."
     ),
 )
@@ -23,25 +23,20 @@ async def generate_lesson_note(
     Parameters
     ----------
     body : LessonNoteRequest
-        user_id, session_id, raw_content
-    request : Request
-        FastAPI Request 객체 — app.state 에서 workflow 를 가져옵니다.
-
-    Returns
-    -------
-    LessonNoteResponse
-        최종 생성된 레슨노트 JSON
+        session_id, audio_path, song_title, keywords
     """
     workflow = request.app.state.workflow
-
-    # session_id 를 LangGraph thread_id 로 사용 → 세션 맥락 유지
     config = {"configurable": {"thread_id": body.session_id}}
 
     initial_state = {
-        "user_id": body.user_id,
         "session_id": body.session_id,
-        "raw_content": body.raw_content,
-        "messages": [],
+        "audio_path": body.audio_path,
+        "song_title": body.song_title,
+        "keywords": [kw.model_dump() for kw in body.keywords],
+        "transcript": "",
+        "lesson_note": None,
+        "errors": [],
+        "retry_count": 0,
     }
 
     try:
@@ -59,7 +54,14 @@ async def generate_lesson_note(
             detail="워크플로우가 레슨노트를 반환하지 않았습니다.",
         )
 
+    note_dict = (
+        lesson_note.model_dump()
+        if hasattr(lesson_note, "model_dump")
+        else lesson_note
+    )
+
     return LessonNoteResponse(
         session_id=body.session_id,
-        lesson_note=lesson_note,
+        transcript=final_state.get("transcript", ""),
+        lesson_note=note_dict,
     )

@@ -41,6 +41,9 @@ services:
         condition: service_healthy
     env_file:
       - ./ai/.env
+    volumes:
+      - ./ai:/app             # Mount the entire /ai folder to /app inside the container
+      - ./uploads:/uploads    # 오디오 파일 마운트 (test.m4a 등)
     restart: on-failure
 
   # 4. Frontend 서비스 (추후 추가)

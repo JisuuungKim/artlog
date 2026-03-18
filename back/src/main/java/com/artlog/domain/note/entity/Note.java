@@ -88,7 +88,7 @@ public class Note extends BaseTimeEntity {
     @OneToMany(mappedBy = "note", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
     @Builder.Default
-    private List<FeedbackCard> feedbackCards = new ArrayList<>();
+    private List<FeedbackKeyword> feedbackKeywords = new ArrayList<>();
 
     @OneToMany(mappedBy = "note", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)

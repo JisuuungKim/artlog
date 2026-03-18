@@ -1,4 +1,14 @@
 from pydantic import BaseModel, Field
+from typing import List, Optional
+
+
+# ────────────────────────────────────────────────────────────────
+# 공통 서브 모델 (state.py와 맞춤)
+# ────────────────────────────────────────────────────────────────
+
+class KeywordItem(BaseModel):
+    feedback_keyword_id: str
+    feedback_keyword_name: str
 
 
 # ────────────────────────────────────────────────────────────────
@@ -8,12 +18,10 @@ from pydantic import BaseModel, Field
 class LessonNoteRequest(BaseModel):
     """POST /api/v1/lesson-notes/generate 요청 바디."""
 
-    user_id: str = Field(..., description="요청 사용자 ID")
-    session_id: str = Field(
-        ...,
-        description="세션 ID. LangGraph thread_id 로 사용되어 대화 맥락이 유지됩니다.",
-    )
-    raw_content: str = Field(..., description="레슨 원본 텍스트")
+    session_id: str = Field(..., description="세션 ID — LangGraph thread_id로 사용")
+    audio_path: str = Field(..., description="컨테이너 내부 오디오 파일 절대 경로")
+    song_title: List[str] = Field(default=[], description="레슨에서 다룬 곡 제목 목록")
+    keywords: List[KeywordItem] = Field(default=[], description="피드백 카드 분류용 키워드 목록")
 
 
 # ────────────────────────────────────────────────────────────────
@@ -24,21 +32,5 @@ class LessonNoteResponse(BaseModel):
     """POST /api/v1/lesson-notes/generate 응답 바디."""
 
     session_id: str = Field(..., description="요청에 사용된 세션 ID")
-    lesson_note: dict = Field(
-        ...,
-        description="최종 생성된 레슨노트 정리본 (JSON 구조)",
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "session_id": "sess-abc123",
-                "lesson_note": {
-                    "title": "2026-03-09 레슨 요약",
-                    "key_points": ["포인트 1", "포인트 2"],
-                    "summary": "오늘 레슨의 핵심 내용 요약...",
-                    "action_items": ["다음 레슨까지 연습할 것"],
-                },
-            }
-        }
-    }
+    transcript: str = Field(..., description="STT + 보정된 전체 텍스트")
+    lesson_note: dict = Field(..., description="최종 생성된 레슨노트 (JSON)")

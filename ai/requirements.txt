@@ -1,17 +1,28 @@
 # ─── Web Framework ───────────────────────────────────────────
-fastapi==0.115.6
-uvicorn[standard]==0.32.1
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
 
 # ─── LangGraph & LangChain ───────────────────────────────────
-langgraph==0.2.56
-langchain-core==0.3.28
-langchain-openai==0.2.14        # 실제 LLM 호출 시 사용 (선택사항)
+langgraph>=0.2.56
+langchain-core>=0.3.31
+langchain-openai>=0.2.14
+langchain-community>=0.3.15     # TavilySearchResults 등 커뮤니티 도구
+langchain-teddynote>=0.1.0      # 그래프 시각화 (visualize_graph)
+
+# ─── OpenAI ──────────────────────────────────────────────────
+openai>=1.30.0                  # Whisper API (client.audio.transcriptions)
+
+# ─── Audio ───────────────────────────────────────────────────
+pydub==0.25.1                   # 오디오 청크 분할 (gpt-4o-transcribe-diarize 1400초 제한 우회)
+
+# ─── Search Tool ─────────────────────────────────────────────
+tavily-python>=0.3.9            # TavilySearchResults 의존성
 
 # ─── PostgreSQL (psycopg3) & LangGraph Checkpointer ──────────
-psycopg[binary,pool]==3.2.3
-langgraph-checkpoint-postgres==2.0.9
+psycopg[binary,pool]>=3.2.3
+langgraph-checkpoint-postgres>=2.0.9
 
 # ─── Settings & Env ──────────────────────────────────────────
-pydantic==2.10.3
-pydantic-settings==2.6.1
-python-dotenv==1.0.1
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.1

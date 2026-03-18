@@ -9,6 +9,7 @@ lifespan 컨텍스트 매니저를 통해:
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -23,6 +24,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# ── LangSmith 추적 설정 ────────────────────────────────────────────
+# .env에 LANGSMITH_TRACING=true 와 LANGSMITH_API_KEY 를 입력하면 자동 활성화
+os.environ.setdefault("LANGCHAIN_TRACING_V2", settings.langsmith_tracing)
+os.environ.setdefault("LANGCHAIN_API_KEY", settings.langsmith_api_key)
+os.environ.setdefault("LANGCHAIN_PROJECT", settings.langsmith_project)
 
 
 # ────────────────────────────────────────────────────────────────

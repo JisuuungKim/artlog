@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # ── LLM ───────────────────────────────────────────────────────
     openai_api_key: str = ""
 
+    # ── LangSmith ─────────────────────────────────────────────────
+    langsmith_tracing: str = "false"     # "true" 로 설정하면 추적 활성화
+    langsmith_api_key: str = ""
+    langsmith_project: str = "artlog-ai"
+
     # ── 커넥션 풀 크기 ─────────────────────────────────────────────
     db_pool_min_size: int = 2
     db_pool_max_size: int = 10

@@ -8,6 +8,7 @@ import com.artlog.domain.folder.service.FolderService;
 import com.artlog.domain.note.dto.NoteResponse.NoteSummary;
 import com.artlog.domain.note.service.NoteService;
 import com.artlog.domain.user.entity.User;
+import com.artlog.global.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,8 +32,9 @@ public class FolderController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<FolderSummary>>> getFolders(
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal Object principal
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         List<FolderSummary> folders = folderService.getFolders(user.getId());
         return ResponseEntity.ok(ApiResponse.ok(folders));
     }
@@ -43,9 +45,10 @@ public class FolderController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<FolderSummary>> createFolder(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @Valid @RequestBody CreateFolderRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         FolderSummary created = folderService.createFolder(user, req);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(created));
     }
@@ -56,10 +59,11 @@ public class FolderController {
      */
     @PatchMapping("/{folderId}")
     public ResponseEntity<ApiResponse<FolderSummary>> renameFolder(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long folderId,
             @Valid @RequestBody RenameFolderRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         FolderSummary updated = folderService.renameFolder(user.getId(), folderId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
@@ -70,9 +74,10 @@ public class FolderController {
      */
     @DeleteMapping("/{folderId}")
     public ResponseEntity<ApiResponse<Void>> deleteFolder(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long folderId
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         folderService.deleteFolder(user.getId(), folderId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
@@ -83,10 +88,11 @@ public class FolderController {
      */
     @GetMapping("/{folderId}/notes")
     public ResponseEntity<ApiResponse<List<NoteSummary>>> getNotesByFolder(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long folderId,
             @RequestParam(defaultValue = "ALL") String type
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         List<NoteSummary> notes = noteService.getNotesByFolder(user.getId(), folderId, type);
         return ResponseEntity.ok(ApiResponse.ok(notes));
     }

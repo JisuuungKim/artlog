@@ -26,8 +26,31 @@ spring:
         format_sql: true
         default_schema: public
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:change-me-to-a-very-long-random-string-for-jwt-signing}
+  access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:3600}
+  refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:1209600}
+
+app:
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  oauth2:
+    authorized-redirect-uri: ${OAUTH2_AUTHORIZED_REDIRECT_URI:http://localhost:5173/auth/callback}
+    failure-redirect-uri: ${OAUTH2_FAILURE_REDIRECT_URI:http://localhost:5173/auth/login}
+  auth:
+    refresh-cookie-name: ${REFRESH_COOKIE_NAME:refresh_token}
+    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:true}
+  apple:
+    audience: ${APPLE_CLIENT_ID:}
+    issuer: ${APPLE_ISSUER:https://appleid.apple.com}
+    public-key-url: ${APPLE_PUBLIC_KEY_URL:https://appleid.apple.com/auth/keys}
 
 management:
   endpoints:

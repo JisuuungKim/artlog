@@ -15,10 +15,6 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
     setIsExpanded(!isExpanded);
   };
 
-  const handlePracticeRecord = () => {
-    setIsExpanded(false);
-  };
-
   const handleLessonNote = () => {
     navigate('/lessons/new');
   };

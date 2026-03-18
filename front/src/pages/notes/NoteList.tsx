@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 export default function NoteList() {
-  const { type, id } = useParams<{ type: string; id: string }>();
+  const { type } = useParams<{ type: string; id: string }>();
 
   const VALID_TYPES = ['folder', 'lessonNote', 'music'] as const;
   type NoteType = (typeof VALID_TYPES)[number];

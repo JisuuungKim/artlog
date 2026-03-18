@@ -8,6 +8,7 @@ import com.artlog.domain.note.dto.NoteRequest.RenameNoteRequest;
 import com.artlog.domain.note.dto.NoteResponse.NoteSummary;
 import com.artlog.domain.note.service.NoteService;
 import com.artlog.domain.user.entity.User;
+import com.artlog.global.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +28,10 @@ public class NoteController {
      */
     @DeleteMapping("/{noteId}")
     public ResponseEntity<ApiResponse<Void>> deleteNote(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long noteId
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         noteService.deleteNote(user.getId(), noteId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
@@ -40,10 +42,11 @@ public class NoteController {
      */
     @PatchMapping("/{noteId}/title")
     public ResponseEntity<ApiResponse<NoteSummary>> renameNote(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long noteId,
             @Valid @RequestBody RenameNoteRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         NoteSummary updated = noteService.renameNote(user.getId(), noteId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
@@ -54,10 +57,11 @@ public class NoteController {
      */
     @PatchMapping("/{noteId}/move")
     public ResponseEntity<ApiResponse<NoteSummary>> moveNote(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long noteId,
             @Valid @RequestBody MoveNoteRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         NoteSummary updated = noteService.moveNote(user.getId(), noteId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
@@ -68,9 +72,10 @@ public class NoteController {
      */
     @PatchMapping("/bulk-move")
     public ResponseEntity<ApiResponse<Void>> bulkMoveNotes(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @Valid @RequestBody BulkMoveRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         noteService.bulkMoveNotes(user.getId(), req);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
@@ -81,9 +86,10 @@ public class NoteController {
      */
     @DeleteMapping("/bulk-delete")
     public ResponseEntity<ApiResponse<Void>> bulkDeleteNotes(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @Valid @RequestBody BulkDeleteRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         noteService.bulkDeleteNotes(user.getId(), req);
         return ResponseEntity.ok(ApiResponse.noContent());
     }

@@ -127,6 +127,12 @@ public class User {
         }
     }
 
+    public void updateSocialProfile(String email) {
+        this.email = email;
+        this.isDeleted = false;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public void hideIphoneUploadGuide() {
         this.hideIphoneUploadGuide = true;
         this.updatedAt = OffsetDateTime.now();

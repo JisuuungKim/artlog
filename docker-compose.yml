@@ -18,17 +18,34 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: artlog-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
   # 2. Spring Boot 애플리케이션 서비스
   app:
-    build: ./back
+    build:
+      context: ./back
+      target: dev
     container_name: artlog-app
+    working_dir: /app
+    command: ["./gradlew", "bootRun", "--continuous"]
     ports:
       - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     env_file:
       - ./back/.env
+    volumes:
+      - ./back:/app
+      - gradle-cache:/root/.gradle
+    restart: unless-stopped
 
   # 3. AI Agent 서비스 (FastAPI + LangGraph)
   ai:
@@ -46,11 +63,23 @@ services:
       - ./uploads:/uploads    # 오디오 파일 마운트 (test.m4a 등)
     restart: on-failure
 
-  # 4. Frontend 서비스 (추후 추가)
-  # front:
-  #   build: ./front
-  #   container_name: artlog-front
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - app
+  front:
+    build: ./front
+    container_name: artlog-front
+    working_dir: /app
+    command: ["sh", "-lc", "npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
+    ports:
+      - "5173:5173"
+    depends_on:
+      - app
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./front:/app
+      - front-node-modules:/app/node_modules
+    restart: unless-stopped
+
+volumes:
+  gradle-cache:
+  front-node-modules:

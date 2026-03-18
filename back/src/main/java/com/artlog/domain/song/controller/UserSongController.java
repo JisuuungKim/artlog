@@ -6,6 +6,7 @@ import com.artlog.domain.song.dto.SongResponse.SongSummary;
 import com.artlog.domain.song.dto.SongResponse.SongWithNotes;
 import com.artlog.domain.song.service.UserSongService;
 import com.artlog.domain.user.entity.User;
+import com.artlog.global.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +28,10 @@ public class UserSongController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<SongSummary>>> getSongs(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @RequestParam(required = false) Long categoryId
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         List<SongSummary> songs = userSongService.getSongsByCategory(user.getId(), categoryId);
         return ResponseEntity.ok(ApiResponse.ok(songs));
     }
@@ -40,9 +42,10 @@ public class UserSongController {
      */
     @GetMapping("/{songId}/notes")
     public ResponseEntity<ApiResponse<SongWithNotes>> getNotesBySong(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long songId
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         SongWithNotes result = userSongService.getNotesBySong(user.getId(), songId);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
@@ -53,10 +56,11 @@ public class UserSongController {
      */
     @PatchMapping("/{songId}")
     public ResponseEntity<ApiResponse<SongSummary>> renameSong(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long songId,
             @Valid @RequestBody RenameSongRequest req
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         SongSummary updated = userSongService.renameSong(user.getId(), songId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
@@ -67,9 +71,10 @@ public class UserSongController {
      */
     @DeleteMapping("/{songId}")
     public ResponseEntity<ApiResponse<Void>> deleteSong(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @PathVariable Long songId
     ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
         userSongService.deleteSong(user.getId(), songId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }

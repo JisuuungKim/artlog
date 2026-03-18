@@ -6,6 +6,7 @@ export type MeResponse = {
   provider: string;
   socialId: string;
   email: string | null;
+  name: string | null;
   remainingCount: number;
   hideIphoneUploadGuide: boolean;
   hideMobileDataGuide: boolean;

@@ -7,6 +7,7 @@ public record UserMeResponse(
         String provider,
         String socialId,
         String email,
+        String name,
         Integer remainingCount,
         Boolean hideIphoneUploadGuide,
         Boolean hideMobileDataGuide
@@ -17,6 +18,7 @@ public record UserMeResponse(
                 user.getProvider(),
                 user.getSocialId(),
                 user.getEmail(),
+                user.getName(),
                 user.getRemainingCount(),
                 user.getHideIphoneUploadGuide(),
                 user.getHideMobileDataGuide()

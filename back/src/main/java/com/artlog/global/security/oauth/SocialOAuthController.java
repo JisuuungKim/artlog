@@ -7,7 +7,6 @@ import com.artlog.domain.user.entity.User;
 import com.artlog.global.security.SessionCookieService;
 import com.artlog.global.security.oauth.apple.AppleIdentityTokenValidator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +26,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -107,7 +107,7 @@ public class SocialOAuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-        handleCallback(provider, code, state, error, request, response);
+        handleCallback(provider, code, state, error, null, request, response);
     }
 
     @PostMapping(path = "/login/oauth2/code/apple", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
@@ -115,10 +115,11 @@ public class SocialOAuthController {
             String code,
             String state,
             String error,
+            String user,
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-        handleCallback(SocialOAuthProvider.APPLE.registrationId(), code, state, error, request, response);
+        handleCallback(SocialOAuthProvider.APPLE.registrationId(), code, state, error, user, request, response);
     }
 
     private void handleCallback(
@@ -126,6 +127,7 @@ public class SocialOAuthController {
             String code,
             String state,
             String error,
+            String rawUserPayload,
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
@@ -145,12 +147,8 @@ public class SocialOAuthController {
         }
 
         try {
-            Map<String, Object> userAttributes = fetchUserAttributes(socialOAuthProvider, request, code);
-            SocialUserLoginResult loginResult = socialUserRegistrar.registerOrUpdate(
-                    socialOAuthProvider.name(),
-                    userAttributes,
-                    defaultNameAttributeKey(socialOAuthProvider)
-            );
+            SocialUserProfile userProfile = fetchUserProfile(socialOAuthProvider, request, code, rawUserPayload);
+            SocialUserLoginResult loginResult = socialUserRegistrar.registerOrUpdate(userProfile);
 
             User user = loginResult.user();
             TokenPairResponse tokenPair = authService.issueTokenPair(user);
@@ -209,17 +207,18 @@ public class SocialOAuthController {
         };
     }
 
-    private Map<String, Object> fetchUserAttributes(
+    private SocialUserProfile fetchUserProfile(
             SocialOAuthProvider provider,
             HttpServletRequest request,
-            String code
+            String code,
+            String rawUserPayload
     ) {
         OAuthTokenResponse tokenResponse = exchangeCode(provider, request, code);
 
         return switch (provider) {
-            case GOOGLE -> fetchJsonUserInfo(GOOGLE_USER_INFO_URI, tokenResponse.accessToken());
-            case KAKAO -> fetchJsonUserInfo(KAKAO_USER_INFO_URI, tokenResponse.accessToken());
-            case APPLE -> claimsToMap(appleIdentityTokenValidator.validate(tokenResponse.idToken()));
+            case GOOGLE -> toGoogleProfile(fetchJsonUserInfo(GOOGLE_USER_INFO_URI, tokenResponse.accessToken()));
+            case KAKAO -> toKakaoProfile(fetchJsonUserInfo(KAKAO_USER_INFO_URI, tokenResponse.accessToken()));
+            case APPLE -> toAppleProfile(tokenResponse.idToken(), rawUserPayload);
         };
     }
 
@@ -252,9 +251,103 @@ public class SocialOAuthController {
                 .body(Map.class);
     }
 
-    private Map<String, Object> claimsToMap(Claims claims) {
-        return objectMapper.convertValue(claims, new TypeReference<>() {
-        });
+    private SocialUserProfile toGoogleProfile(Map<String, Object> attributes) {
+        return new SocialUserProfile(
+                SocialOAuthProvider.GOOGLE.name(),
+                stringValue(attributes.get("sub")),
+                stringValue(attributes.get("email")),
+                firstNonBlank(
+                        stringValue(attributes.get("name")),
+                        stringValue(attributes.get("given_name"))
+                )
+        );
+    }
+
+    private SocialUserProfile toKakaoProfile(Map<String, Object> attributes) {
+        Map<String, Object> account = nestedMap(attributes, "kakao_account");
+        Map<String, Object> profile = nestedMap(account, "profile");
+
+        return new SocialUserProfile(
+                SocialOAuthProvider.KAKAO.name(),
+                stringValue(attributes.get("id")),
+                stringValue(account.get("email")),
+                stringValue(profile.get("nickname"))
+        );
+    }
+
+    private SocialUserProfile toAppleProfile(String idToken, String rawUserPayload) {
+        Claims claims = appleIdentityTokenValidator.validate(idToken);
+        Map<String, Object> appleUser = parseAppleUserPayload(rawUserPayload);
+        Map<String, Object> appleName = nestedMap(appleUser, "name");
+
+        return new SocialUserProfile(
+                SocialOAuthProvider.APPLE.name(),
+                claims.getSubject(),
+                firstNonBlank(claims.get("email", String.class), stringValue(appleUser.get("email"))),
+                firstNonBlank(
+                        joinName(
+                                stringValue(appleName.get("firstName")),
+                                stringValue(appleName.get("lastName"))
+                        ),
+                        joinName(
+                                stringValue(appleName.get("lastName")),
+                                stringValue(appleName.get("firstName"))
+                        )
+                )
+        );
+    }
+
+    private Map<String, Object> parseAppleUserPayload(String rawUserPayload) {
+        if (rawUserPayload == null || rawUserPayload.isBlank()) {
+            return Map.of();
+        }
+
+        try {
+            return objectMapper.readValue(rawUserPayload, objectMapper.getTypeFactory()
+                    .constructMapType(HashMap.class, String.class, Object.class));
+        } catch (Exception exception) {
+            log.warn("Failed to parse Apple user payload", exception);
+            return Map.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> nestedMap(Map<String, Object> attributes, String key) {
+        Object value = attributes.get(key);
+        if (value instanceof Map<?, ?> mapValue) {
+            return (Map<String, Object>) mapValue;
+        }
+        return Map.of();
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() ? null : text;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String joinName(String first, String second) {
+        String left = first == null ? "" : first.trim();
+        String right = second == null ? "" : second.trim();
+
+        if (left.isBlank()) {
+            return right.isBlank() ? null : right;
+        }
+        if (right.isBlank()) {
+            return left;
+        }
+        return left + " " + right;
     }
 
     private String buildRedirectUri(HttpServletRequest request, SocialOAuthProvider provider) {
@@ -279,13 +372,6 @@ public class SocialOAuthController {
     ) {
         socialOAuthStateCookieService.clearStateCookie(provider, request, response);
         sessionCookieService.expireSessionCookie(request, response);
-    }
-
-    private String defaultNameAttributeKey(SocialOAuthProvider provider) {
-        return switch (provider) {
-            case GOOGLE, APPLE -> "sub";
-            case KAKAO -> "id";
-        };
     }
 
     private String clientId(SocialOAuthProvider provider) {

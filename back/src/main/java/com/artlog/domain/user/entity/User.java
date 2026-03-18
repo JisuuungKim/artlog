@@ -15,7 +15,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "\"user\"")
+@Table(
+        name = "\"user\"",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_user_provider_social_id",
+                columnNames = {"provider", "social_id"}
+        )
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -26,7 +32,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "social_id", nullable = false, unique = true, length = 255)
+    @Column(name = "social_id", nullable = false, length = 255)
     private String socialId;
 
     @Column(name = "provider", nullable = false, length = 50)
@@ -34,6 +40,9 @@ public class User {
 
     @Column(name = "email", length = 255)
     private String email;
+
+    @Column(name = "name", length = 255)
+    private String name;
 
     @Column(name = "remaining_count")
     @Builder.Default
@@ -127,8 +136,11 @@ public class User {
         }
     }
 
-    public void updateSocialProfile(String email) {
+    public void upsertSocialProfile(String provider, String socialId, String email, String name) {
+        this.provider = provider;
+        this.socialId = socialId;
         this.email = email;
+        this.name = name;
         this.isDeleted = false;
         this.updatedAt = OffsetDateTime.now();
     }

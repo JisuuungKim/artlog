@@ -75,6 +75,7 @@ export default function Login() {
               <div className="text-body2 text-greyscale-neutral-600">
                 <p>ID: {user.id}</p>
                 <p>Provider: {user.provider}</p>
+                <p>Name: {user.name ?? '없음'}</p>
                 <p>Email: {user.email ?? '없음'}</p>
               </div>
               <Button

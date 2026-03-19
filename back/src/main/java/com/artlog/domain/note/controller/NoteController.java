@@ -49,6 +49,15 @@ public class NoteController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(created));
     }
 
+    @GetMapping("/recent-lessons")
+    public ResponseEntity<ApiResponse<java.util.List<NoteSummary>>> getRecentLessonNotes(
+            @AuthenticationPrincipal Object principal,
+            @RequestParam(required = false) Long categoryId
+    ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
+        return ResponseEntity.ok(ApiResponse.ok(noteService.getRecentLessonNotes(user.getId(), categoryId)));
+    }
+
     @GetMapping("/{noteId}")
     public ResponseEntity<ApiResponse<NoteDetail>> getNoteDetail(
             @AuthenticationPrincipal Object principal,

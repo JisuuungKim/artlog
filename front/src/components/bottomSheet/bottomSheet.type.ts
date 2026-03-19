@@ -1,4 +1,5 @@
 export interface SheetOption {
-  id: string;
-  name: string;
+  id: string | number;
+  name?: string;
+  title?: string;
 }

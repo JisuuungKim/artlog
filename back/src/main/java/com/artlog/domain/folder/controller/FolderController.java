@@ -32,10 +32,11 @@ public class FolderController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<FolderSummary>>> getFolders(
-            @AuthenticationPrincipal Object principal
+            @AuthenticationPrincipal Object principal,
+            @RequestParam(required = false) Long categoryId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        List<FolderSummary> folders = folderService.getFolders(user.getId());
+        List<FolderSummary> folders = folderService.getFolders(user.getId(), categoryId);
         return ResponseEntity.ok(ApiResponse.ok(folders));
     }
 

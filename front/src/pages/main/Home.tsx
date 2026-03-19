@@ -1,32 +1,32 @@
 import AppBar from '@/components/appBar';
 import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
-import type { SheetOption } from '@/components/bottomSheet';
 import Chip from '@/components/common/Chip';
 import LessonNoteCard, {
   LessonNoteFailedCard,
   LessonNoteProcessingCard,
 } from '@/components/lessonNoteCard';
 import { useState } from 'react';
-
-const categories: SheetOption[] = [
-  { id: '1', name: '보컬' },
-  { id: '2', name: '피아노' },
-  { id: '3', name: '연기' },
-];
+import { useCategories } from '@/hooks/useNoteBrowser';
+import { useSelectedCategory } from '@/hooks/useSelectedCategory';
+import {
+  useRecentLessonNotes,
+  useRetryLessonNoteProcessing,
+} from '@/hooks/useLessonNote';
 
 export default function Home() {
-  const [selected, setSelected] = useState<boolean>(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('1');
+  const { data: categoriesData = [] } = useCategories();
   const [isCategoryBottomSheetOpen, setIsCategoryBottomSheetOpen] =
     useState(false);
-
-  const categoryMap = new Map(
-    categories.map(category => [category.id, category.name])
+  const { effectiveSelectedCategoryId, setSelectedCategoryId } =
+    useSelectedCategory(categoriesData);
+  const { data: recentNotes = [] } = useRecentLessonNotes(
+    effectiveSelectedCategoryId || undefined
   );
-
-  const onSelectionChange = (isSelected: boolean) => {
-    setSelected(isSelected);
-  };
+  const retryLessonNoteProcessing = useRetryLessonNoteProcessing();
+  const selectedCategoryName =
+    categoriesData.find(
+      category => String(category.id) === effectiveSelectedCategoryId
+    )?.name ?? '보컬';
 
   const handleCategoryBottomSheetOpen = () => {
     setIsCategoryBottomSheetOpen(true);
@@ -45,26 +45,50 @@ export default function Home() {
     <div className="space-y-4">
       <AppBar
         variant="category-right-icons"
-        title={categoryMap.get(selectedCategoryId) || '보컬'}
+        title={selectedCategoryName}
         onCategoryChevronClick={handleCategoryBottomSheetOpen}
       />
       <div className="pt-9 pb-18 px-5">
         <p className="text-h2 mb-4 text-greyscale-text-title-900">최근 노트</p>
         <div className="flex flex-col gap-2">
-          <LessonNoteProcessingCard progress={70} remainingMinute={3} />
-          <LessonNoteFailedCard />
-          <LessonNoteCard
-            editMode
-            selected={selected}
-            onSelectionChange={onSelectionChange}
-          />
-          <LessonNoteCard />
-          <LessonNoteCard isNew />
-          <LessonNoteCard isNew />
-          <LessonNoteCard isNew />
-          <LessonNoteCard isNew />
-          <LessonNoteCard isNew />
-          <LessonNoteCard isNew />
+          {recentNotes.map(note => {
+            if (note.status === 'PROCESSING') {
+              return (
+                <LessonNoteProcessingCard
+                  key={note.id}
+                  title={note.title}
+                  progress={70}
+                  remainingMinute={3}
+                />
+              );
+            }
+
+            if (note.status === 'FAILED') {
+              return (
+                <LessonNoteFailedCard
+                  key={note.id}
+                  title={note.title}
+                  onRetry={() => retryLessonNoteProcessing.mutate(note.id)}
+                />
+              );
+            }
+
+            return (
+              <LessonNoteCard
+                key={note.id}
+                title={note.title}
+                createdAt={new Date(note.createdAt).toLocaleString('ko-KR', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+                folderName={note.folderName ?? '전체노트'}
+                songTitles={note.songTitles}
+              />
+            );
+          })}
         </div>
         <div className="flex justify-center pt-4">
           <Chip variant="default">더보기</Chip>
@@ -78,8 +102,8 @@ export default function Home() {
         buttonText="확인"
       >
         <SheetSelector
-          options={categories}
-          selected={selectedCategoryId}
+          options={categoriesData}
+          selected={effectiveSelectedCategoryId}
           onSelect={setSelectedCategoryId}
           onAddCategory={handleAddCategory}
           addCategoryLabel="카테고리 추가하기"

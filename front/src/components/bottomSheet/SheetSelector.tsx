@@ -33,25 +33,25 @@ export default function SheetSelector({
             className={`
                 flex items-center px-4 py-3 cursor-pointer transition-colors
                 ${index !== options.length - 1 ? 'border-b border-greyscale-border-300' : ''}
-                ${selected === option.id ? 'bg-primary-50' : ''}
+                ${selected === String(option.id) ? 'bg-primary-50' : ''}
               `}
-            onClick={() => onSelect(option.id)}
+            onClick={() => onSelect(String(option.id))}
           >
             <span
               className={`
                   flex-1 text-subtitle3 tracking-tight
                   ${
-                    option.id === currentId
+                    String(option.id) === currentId
                       ? 'text-greyscale-border-300'
-                      : selected === option.id
+                      : selected === String(option.id)
                         ? activeTextColor
                         : 'text-greyscale-text-body-700'
                   }
                 `}
             >
-              {option.name}
+              {option.name ?? option.title ?? ''}
             </span>
-            {selected === option.id && (
+            {selected === String(option.id) && (
               <div className="flex items-center justify-center">
                 <CheckBgPrimary600Icon />
               </div>

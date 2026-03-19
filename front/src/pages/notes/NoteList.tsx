@@ -12,10 +12,16 @@ import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
 import LessonNoteCard from '@/components/lessonNoteCard';
 import { DialogModal, InputModal } from '@/components/modal';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  useFolderNotes,
+  useFolders,
+  useSongNotes,
+} from '@/hooks/useNoteBrowser';
 
 export default function NoteList() {
-  const { type } = useParams<{ type: string; id: string }>();
+  const { type, id } = useParams<{ type: string; id: string }>();
+  const navigate = useNavigate();
 
   const VALID_TYPES = ['folder', 'lessonNote', 'music'] as const;
   type NoteType = (typeof VALID_TYPES)[number];
@@ -37,6 +43,16 @@ export default function NoteList() {
   const [bottomSheetType, setBottomSheetType] = useState<NoteType>(
     isNoteType(type) ? type : 'folder'
   );
+  const { data: folders = [] } = useFolders();
+  const { data: folderNotes = [] } = useFolderNotes(
+    type === 'folder' ? id : undefined
+  );
+  const { data: songWithNotes } = useSongNotes(type === 'music' ? id : undefined);
+  const title =
+    type === 'music'
+      ? songWithNotes?.title ?? '노래'
+      : folders.find(folder => String(folder.id) === id)?.name ?? '폴더';
+  const notes = type === 'music' ? songWithNotes?.notes ?? [] : folderNotes;
 
   const handleEtcClick = (_id: string, type: NoteType) => {
     // id는 폴더나 노트의 고유 식별자 (예: 폴더 ID 또는 노트 ID)
@@ -146,7 +162,7 @@ export default function NoteList() {
     <div>
       <AppBar
         variant="icons-left-right-single"
-        leftIcon={<BackGreyscale800Icon />}
+        leftIcon={<BackGreyscale800Icon onClick={() => navigate(-1)} />}
         rightIcon={
           <EtcGreyscale800Icon
             onClick={() =>
@@ -163,22 +179,26 @@ export default function NoteList() {
             <MusicGreyscale800Icon className="h-6 w-6" />
           )}
           <span className="text-greyscale-text-title-900 text-h2">
-            겨울 공연 연습
+            {title}
           </span>
         </div>
         <div>
-          <LessonNoteCard
-            onEtcClick={() => handleEtcClick('1', 'lessonNote')}
-          />
-          <LessonNoteCard
-            onEtcClick={() => handleEtcClick('2', 'lessonNote')}
-          />
-          <LessonNoteCard
-            onEtcClick={() => handleEtcClick('3', 'lessonNote')}
-          />
-          <LessonNoteCard
-            onEtcClick={() => handleEtcClick('4', 'lessonNote')}
-          />
+          {notes.map(note => (
+            <LessonNoteCard
+              key={note.id}
+              title={note.title}
+              createdAt={new Date(note.createdAt).toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+              folderName={note.folderName ?? '모든 노트'}
+              songTitles={note.songTitles}
+              onEtcClick={() => handleEtcClick(String(note.id), 'lessonNote')}
+            />
+          ))}
         </div>
       </div>
 

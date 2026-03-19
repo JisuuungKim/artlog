@@ -33,6 +33,8 @@ public class NoteResponse {
             NoteType noteType,
             NoteStatus status,
             Long folderId,
+            String folderName,
+            List<String> songTitles,
             OffsetDateTime createdAt
     ) {
         public static NoteSummary from(Note note) {
@@ -42,6 +44,10 @@ public class NoteResponse {
                     note.getNoteType(),
                     note.getStatus(),
                     note.getFolder() != null ? note.getFolder().getId() : null,
+                    note.getFolder() != null ? note.getFolder().getName() : null,
+                    note.getNoteSongTags().stream()
+                            .map(tag -> tag.getUserSong().getTitle())
+                            .toList(),
                     note.getCreatedAt()
             );
         }

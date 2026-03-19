@@ -11,7 +11,6 @@ interface SongSelectorProps {
   setShowAllSongs?: (show: boolean) => void;
   handleSongButtonClick?: (songName: string) => void;
   handleAddSongDirectly?: () => void;
-  songMap?: Map<string, string>;
 }
 
 export default function SongSelector({
@@ -22,8 +21,13 @@ export default function SongSelector({
   setShowAllSongs,
   handleSongButtonClick,
   handleAddSongDirectly,
-  songMap = new Map(),
 }: SongSelectorProps) {
+  const getSongLabel = (song: SheetOption) => song.name ?? song.title ?? '';
+  const getSelectedSongLabel = (songId: string) =>
+    getSongLabel(
+      songs.find(song => String(song.id) === songId) ?? { id: songId, name: '' }
+    );
+
   return (
     <>
       <div className="flex gap-2 flex-wrap items-center pb-7">
@@ -36,18 +40,18 @@ export default function SongSelector({
           <Button
             key={song.id}
             hierarchy={
-              handleSongButtonClick && selectedSongs.includes(song.id)
+              handleSongButtonClick && selectedSongs.includes(String(song.id))
                 ? 'secondary-color'
                 : 'secondary-grey'
             }
             size="small"
             onClick={
               handleSongButtonClick
-                ? () => handleSongButtonClick(song.id)
+                ? () => handleSongButtonClick(String(song.id))
                 : undefined
             }
           >
-            {song.name}
+            {getSongLabel(song)}
           </Button>
         ))}
         {songs.length > 5 && (
@@ -73,7 +77,7 @@ export default function SongSelector({
             }}
             size="small"
           >
-            {songMap.get(songId) || ''}
+            {getSelectedSongLabel(songId)}
           </Button>
         ))}
       </div>

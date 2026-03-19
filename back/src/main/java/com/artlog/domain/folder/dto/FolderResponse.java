@@ -7,13 +7,17 @@ public class FolderResponse {
     public record FolderSummary(
             Long id,
             String name,
-            Boolean isSystem
+            Boolean isSystem,
+            Long categoryId,
+            Integer noteCount
     ) {
         public static FolderSummary from(Folder folder) {
             return new FolderSummary(
                     folder.getId(),
                     folder.getName(),
-                    folder.getIsSystem()
+                    folder.getIsSystem(),
+                    folder.getCategory() != null ? folder.getCategory().getId() : null,
+                    folder.getNotes().size()
             );
         }
     }

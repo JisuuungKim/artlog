@@ -10,13 +10,20 @@ import java.util.Optional;
 
 public interface UserSongRepository extends JpaRepository<UserSong, Long> {
 
-    Optional<UserSong> findByUserIdAndTitleIgnoreCase(Long userId, String title);
+    @Query("SELECT us FROM UserSong us WHERE us.user.id = :userId" +
+           " AND us.category.id = :categoryId" +
+           " AND upper(us.title) = upper(:title)")
+    Optional<UserSong> findByUserIdAndCategoryIdAndTitleIgnoreCase(
+            @Param("userId") Long userId,
+            @Param("categoryId") Long categoryId,
+            @Param("title") String title
+    );
 
     /** 특정 유저의 카테고리별 노래 목록(해당 카테고리에 노트가 있는 곡) */
-    @Query("SELECT DISTINCT nst.userSong FROM NoteSongTag nst" +
-           " WHERE nst.note.user.id = :userId" +
-           " AND (:categoryId IS NULL OR nst.note.category.id = :categoryId)" +
-           " ORDER BY nst.userSong.createdAt DESC")
+    @Query("SELECT us FROM UserSong us" +
+           " WHERE us.user.id = :userId" +
+           " AND (:categoryId IS NULL OR us.category.id = :categoryId)" +
+           " ORDER BY us.createdAt DESC")
     List<UserSong> findByUserIdAndCategoryId(
             @Param("userId") Long userId,
             @Param("categoryId") Long categoryId
@@ -24,4 +31,6 @@ public interface UserSongRepository extends JpaRepository<UserSong, Long> {
 
     /** 소유자 확인용 단건 조회 */
     Optional<UserSong> findByIdAndUserId(Long id, Long userId);
+
+    List<UserSong> findAllByCategoryIsNull();
 }

@@ -1,6 +1,8 @@
 package com.artlog.domain.note.service;
 
 import com.artlog.common.exception.ArtlogException;
+import com.artlog.domain.category.entity.Category;
+import com.artlog.domain.category.repository.CategoryRepository;
 import com.artlog.domain.folder.entity.Folder;
 import com.artlog.domain.folder.repository.FolderRepository;
 import com.artlog.domain.note.dto.NoteRequest.BulkDeleteRequest;
@@ -23,6 +25,7 @@ import com.artlog.domain.user.entity.User;
 import com.artlog.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,10 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class NoteService {
 
+    private static final String DEFAULT_FOLDER_NAME = "전체노트";
+    private static final String DEFAULT_CATEGORY_NAME = "보컬";
+
+    private final CategoryRepository categoryRepository;
     private final NoteRepository noteRepository;
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
@@ -70,6 +77,17 @@ public class NoteService {
                 .toList();
     }
 
+    public List<NoteSummary> getRecentLessonNotes(Long userId, Long categoryId) {
+        return noteRepository.findRecentByUserIdAndCategoryIdAndType(
+                        userId,
+                        categoryId,
+                        NoteType.LESSON,
+                        PageRequest.of(0, 10)
+                ).stream()
+                .map(NoteSummary::from)
+                .toList();
+    }
+
     @Transactional
     public UploadedLessonAudio uploadLessonAudio(Long userId, MultipartFile audio) {
         userRepository.findByIdAndIsDeletedFalse(userId)
@@ -90,10 +108,11 @@ public class NoteService {
     ) {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
+        Category category = resolveCategory(req.categoryId());
 
         Note note = Note.builder()
                 .user(user)
-                .folder(resolveFolder(userId, req.folderId()))
+                .folder(resolveFolder(userId, req.folderId(), category))
                 .noteType(NoteType.LESSON)
                 .title(resolveTitle(req.title()))
                 .recordingUrl(resolveRecordingUrl(audio, req.uploadedAudioPath()))
@@ -105,7 +124,7 @@ public class NoteService {
                 .startTime(OffsetDateTime.now())
                 .build();
 
-        attachSongs(note, user, req.songTitles());
+        attachSongs(note, user, category, req.songTitles());
 
         Note saved = noteRepository.save(note);
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -168,9 +187,9 @@ public class NoteService {
     /** 선택 노트 폴더 일괄 변경 */
     @Transactional
     public void bulkMoveNotes(Long userId, BulkMoveRequest req) {
-        // 대상 폴더 소유자 검증
-        getFolderAndVerifyOwner(userId, req.folderId());
-        noteRepository.bulkMoveNotes(req.noteIds(), req.folderId(), userId);
+        Folder targetFolder = getFolderAndVerifyOwner(userId, req.folderId());
+        noteRepository.findByIdInAndUserId(req.noteIds(), userId)
+                .forEach(note -> note.moveToFolder(targetFolder));
     }
 
     /** 선택 노트 일괄 삭제 */
@@ -195,17 +214,26 @@ public class NoteService {
         return folder;
     }
 
-    private Folder resolveFolder(Long userId, Long folderId) {
+    private Folder resolveFolder(Long userId, Long folderId, Category category) {
         if (folderId != null) {
             return folderRepository.findById(folderId)
                     .filter(folder -> folder.getUser().getId().equals(userId))
-                    .orElseGet(() -> folderRepository.findByUserIdAndIsSystemTrue(userId).orElse(null));
+                    .filter(folder -> folder.getCategory() != null && folder.getCategory().getId().equals(category.getId()))
+                    .orElseGet(() -> findDefaultFolder(userId, category.getId()).orElse(null));
         }
 
-        return folderRepository.findByUserIdAndIsSystemTrue(userId).orElse(null);
+        return findDefaultFolder(userId, category.getId()).orElse(null);
     }
 
-    private void attachSongs(Note note, User user, List<String> songTitles) {
+    private java.util.Optional<Folder> findDefaultFolder(Long userId, Long categoryId) {
+        return folderRepository.findFirstByUserIdAndCategory_IdAndNameOrderByCreatedAtAsc(
+                userId,
+                categoryId,
+                DEFAULT_FOLDER_NAME
+        ).or(() -> folderRepository.findFirstByUserIdAndCategory_IdOrderByCreatedAtAsc(userId, categoryId));
+    }
+
+    private void attachSongs(Note note, User user, Category category, List<String> songTitles) {
         if (songTitles == null) {
             return;
         }
@@ -214,7 +242,7 @@ public class NoteService {
                 .map(this::trimToNull)
                 .filter(title -> title != null)
                 .distinct()
-                .map(title -> findOrCreateSong(user, title))
+                .map(title -> findOrCreateSong(user, category, title))
                 .map(song -> NoteSongTag.builder()
                         .note(note)
                         .userSong(song)
@@ -222,12 +250,24 @@ public class NoteService {
                 .forEach(note.getNoteSongTags()::add);
     }
 
-    private UserSong findOrCreateSong(User user, String title) {
-        return userSongRepository.findByUserIdAndTitleIgnoreCase(user.getId(), title)
+    private UserSong findOrCreateSong(User user, Category category, String title) {
+        return userSongRepository.findByUserIdAndCategoryIdAndTitleIgnoreCase(user.getId(), category.getId(), title)
                 .orElseGet(() -> userSongRepository.save(UserSong.builder()
                         .user(user)
                         .title(title)
+                        .category(category)
                         .build()));
+    }
+
+    private Category resolveCategory(Long categoryId) {
+        if (categoryId != null) {
+            return categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> ArtlogException.notFound("카테고리를 찾을 수 없습니다."));
+        }
+
+        return categoryRepository.findFirstByNameIgnoreCaseOrderByCreatedAtAsc(DEFAULT_CATEGORY_NAME)
+                .or(() -> categoryRepository.findAllByOrderByCreatedAtAsc().stream().findFirst())
+                .orElseThrow(() -> ArtlogException.notFound("카테고리를 찾을 수 없습니다."));
     }
 
     private Path storeAudioFile(MultipartFile audio) {

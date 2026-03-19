@@ -11,7 +11,7 @@ export function ListItem({
 
   return (
     <Tag
-      className={`flex w-full items-center gap-6 py-2 ${className ?? ''}`}
+      className={`flex w-full items-center gap-6 py-2 text-left ${className ?? ''}`}
       onClick={onClick}
     >
       {/* 왼쪽: 아이콘 + 텍스트 */}

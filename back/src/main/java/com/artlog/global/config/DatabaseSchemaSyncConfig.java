@@ -19,6 +19,8 @@ public class DatabaseSchemaSyncConfig {
 
     @EventListener(ApplicationReadyEvent.class)
     public void syncNoteConstraints() {
+        dropObsoleteNoteCategoryColumn();
+
         syncEnumCheckConstraint(
                 "public.note",
                 "note_status_check",
@@ -62,5 +64,9 @@ public class DatabaseSchemaSyncConfig {
                 constraintName,
                 predicate
         ));
+    }
+
+    private void dropObsoleteNoteCategoryColumn() {
+        jdbcTemplate.execute("ALTER TABLE public.note DROP COLUMN IF EXISTS category_id CASCADE");
     }
 }

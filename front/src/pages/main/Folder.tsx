@@ -4,33 +4,37 @@ import { SectionHeader } from '@/pages/main/components/sectionHeader';
 import { FolderGreyscale800Icon } from '@/assets/icons';
 import SongSelector from '../lessons/new/components/SongSelector';
 import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
-import type { SheetOption } from '@/components/bottomSheet';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { InputModal } from '@/components/modal';
-
-const categories: SheetOption[] = [
-  { id: '1', name: '보컬' },
-  { id: '2', name: '피아노' },
-  { id: '3', name: '연기' },
-];
-
-const songs: SheetOption[] = [
-  { id: '1', name: '누가 울새를 죽였니' },
-  { id: '2', name: '작은 별' },
-  { id: '3', name: '생일' },
-  { id: '4', name: 'New life' },
-  { id: '5', name: '나를 지킨다는 것' },
-  { id: '6', name: '사랑이란' },
-];
+import {
+  useCategories,
+  useCreateFolder,
+  useFolders,
+  useSongs,
+} from '@/hooks/useNoteBrowser';
+import { useSelectedCategory } from '@/hooks/useSelectedCategory';
 
 export default function Folder() {
+  const navigate = useNavigate();
+  const { data: categoriesData = [] } = useCategories();
   const [showAllSongs, setShowAllSongs] = useState(false);
   const [open, setOpen] = useState({ folder: true, music: true });
   const [addFolderModalOpen, setAddFolderModalOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('1');
   const [isCategoryBottomSheetOpen, setIsCategoryBottomSheetOpen] = useState(false);
-
-  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+  const { effectiveSelectedCategoryId, setSelectedCategoryId } =
+    useSelectedCategory(categoriesData);
+  const { data: foldersData = [] } = useFolders(
+    effectiveSelectedCategoryId || undefined
+  );
+  const { data: songsData = [] } = useSongs(
+    effectiveSelectedCategoryId || undefined
+  );
+  const createFolder = useCreateFolder();
+  const selectedCategoryName =
+    categoriesData.find(
+      category => String(category.id) === effectiveSelectedCategoryId
+    )?.name ?? '보컬';
 
   const toggle = (key: 'folder' | 'music') =>
     setOpen(prev => ({ ...prev, [key]: !prev[key] }));
@@ -39,7 +43,13 @@ export default function Folder() {
     setAddFolderModalOpen(true);
   };
 
-  const handleConfirm = (_value: string) => {
+  const handleConfirm = (value: string) => {
+    if (value.trim() && effectiveSelectedCategoryId) {
+      createFolder.mutate({
+        name: value,
+        categoryId: Number(effectiveSelectedCategoryId),
+      });
+    }
     setAddFolderModalOpen(false);
   };
 
@@ -47,7 +57,7 @@ export default function Folder() {
     <div className="space-y-4">
       <AppBar
         variant="category-title-only"
-        title={categoryMap.get(selectedCategoryId) || '보컬'}
+        title={selectedCategoryName}
         onCategoryChevronClick={() => setIsCategoryBottomSheetOpen(true)}
       />
       <div className="py-5 flex flex-col gap-8">
@@ -65,21 +75,15 @@ export default function Folder() {
             }`}
           >
             <div className="overflow-hidden">
-              <ListItem
-                label="폴더1"
-                icon={<FolderGreyscale800Icon />}
-                count={20}
-              />
-              <ListItem
-                label="폴더1"
-                icon={<FolderGreyscale800Icon />}
-                count={20}
-              />
-              <ListItem
-                label="폴더1"
-                icon={<FolderGreyscale800Icon />}
-                count={20}
-              />
+              {foldersData.map(folder => (
+                <ListItem
+                  key={folder.id}
+                  label={folder.name}
+                  icon={<FolderGreyscale800Icon />}
+                  count={folder.noteCount}
+                  onClick={() => navigate(`/notes/folder/${folder.id}`)}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -96,9 +100,10 @@ export default function Folder() {
           >
             <div className="overflow-hidden">
               <SongSelector
-                songs={songs}
+                songs={songsData}
                 showAllSongs={showAllSongs}
                 setShowAllSongs={setShowAllSongs}
+                handleSongButtonClick={songId => navigate(`/notes/music/${songId}`)}
               />
             </div>
           </div>
@@ -120,8 +125,8 @@ export default function Folder() {
         buttonText="확인"
       >
         <SheetSelector
-          options={categories}
-          selected={selectedCategoryId}
+          options={categoriesData}
+          selected={effectiveSelectedCategoryId}
           onSelect={setSelectedCategoryId}
           onAddCategory={() => console.log('카테고리 추가하기')}
           addCategoryLabel="카테고리 추가하기"

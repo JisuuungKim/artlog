@@ -1,7 +1,6 @@
 package com.artlog.domain.note.entity;
 
 import com.artlog.global.type.TitleContentItem;
-import com.artlog.domain.category.entity.Category;
 import com.artlog.domain.folder.entity.Folder;
 import com.artlog.domain.user.entity.User;
 import com.artlog.global.entity.BaseTimeEntity;
@@ -34,11 +33,6 @@ public class Note extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "folder_id")
     private Folder folder;
-
-    /** category_id는 ON DELETE SET NULL → nullable FK */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private Category category;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "note_type", nullable = false, length = 20)

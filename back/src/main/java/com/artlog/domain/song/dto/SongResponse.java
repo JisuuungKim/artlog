@@ -11,12 +11,14 @@ public class SongResponse {
     public record SongSummary(
             Long id,
             String title,
+            Long categoryId,
             OffsetDateTime createdAt
     ) {
         public static SongSummary from(UserSong song) {
             return new SongSummary(
                     song.getId(),
                     song.getTitle(),
+                    song.getCategory() != null ? song.getCategory().getId() : null,
                     song.getCreatedAt()
             );
         }

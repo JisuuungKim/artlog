@@ -1,10 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '@/components/button/Button';
 import Chip from '@/components/common/Chip';
 import Checkbox from '@/components/checkbox';
 import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
-import type { SheetOption } from '@/components/bottomSheet';
 import { useTextInput } from '@/components/textInput';
 import {
   ArrowRightGreyscale500Icon,
@@ -15,38 +14,27 @@ import TextInput from '@/components/textInput';
 import InputButton from '@/components/common/InputButton';
 import DialogModal from '@/components/modal/DialogModal';
 import { useCreateLessonNote } from '@/hooks/useLessonNote';
+import {
+  useCategories,
+  useFolders,
+  useSongs,
+} from '@/hooks/useNoteBrowser';
+import { useSelectedCategory } from '@/hooks/useSelectedCategory';
 
-// dummy data
-const categories: SheetOption[] = [
-  { id: '1', name: '보컬' },
-  { id: '2', name: '피아노' },
-  { id: '3', name: '연기' },
-];
-
-const folders: SheetOption[] = [
-  { id: '1', name: '모든노트' },
-  { id: '2', name: '겨울공연' },
-  { id: '3', name: '2026' },
-];
-
-const songs: SheetOption[] = [
-  { id: '1', name: '누가 울새를 죽였니' },
-  { id: '2', name: '작은 별' },
-  { id: '3', name: '생일 축하합니다' },
-  { id: '4', name: 'New life' },
-  { id: '5', name: '나를 지킨다는 것' },
-  { id: '6', name: '사랑이란' },
-];
+const isSameStringArray = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
 
 // todo: 더보기 버튼 눌렀을 때 바텀시트 높이 조절 구현
 export default function FileUpload() {
   const navigate = useNavigate();
   const location = useLocation();
   const createLessonNoteMutation = useCreateLessonNote();
+  const { data: categoriesData = [] } = useCategories();
+  const { effectiveSelectedCategoryId, setSelectedCategoryId } =
+    useSelectedCategory(categoriesData);
 
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('1');
-  const [selectedFolderId, setSelectedFolderId] = useState('1');
+  const [selectedFolderId, setSelectedFolderId] = useState('');
   const [memoText, setMemoText] = useState('');
   const [uploadedAudioPath, setUploadedAudioPath] = useState<string | null>(null);
 
@@ -72,6 +60,19 @@ export default function FileUpload() {
 
   const titleInput = useTextInput('');
   const songInput = useTextInput('');
+  const { data: foldersData = [] } = useFolders(effectiveSelectedCategoryId || undefined);
+  const { data: songsData = [] } = useSongs(effectiveSelectedCategoryId || undefined);
+  const effectiveSelectedFolderId =
+    selectedFolderId || String(foldersData[0]?.id ?? '');
+  const selectedCategoryName =
+    categoriesData.find(
+      category => String(category.id) === effectiveSelectedCategoryId
+    )?.name ?? '보컬';
+  const selectedFolderName =
+    foldersData.find(folder => String(folder.id) === effectiveSelectedFolderId)
+      ?.name ?? '모든노트';
+  const getSongTitle = (songId: string) =>
+    songsData.find(song => String(song.id) === songId)?.title ?? '';
 
   // URL 파라미터를 확인해서 state 업데이트
   useEffect(() => {
@@ -92,12 +93,14 @@ export default function FileUpload() {
     }
 
     if (fld) {
-      setSelectedFolderId(fld);
+      setSelectedFolderId(previous => (previous === fld ? previous : fld));
     }
 
     if (songs) {
       const songIds = songs.split(',').filter(id => id.trim() !== '');
-      setSelectedSongIds(songIds);
+      setSelectedSongIds(previous =>
+        isSameStringArray(previous, songIds) ? previous : songIds
+      );
     }
 
     if (memo) {
@@ -119,31 +122,39 @@ export default function FileUpload() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!foldersData.length) {
+      setSelectedFolderId(previous => (previous === '' ? previous : ''));
+      return;
+    }
+
+    const hasSelectedFolder = foldersData.some(
+      folder => String(folder.id) === selectedFolderId
+    );
+
+    if (!hasSelectedFolder) {
+      const firstFolderId = String(foldersData[0].id);
+      setSelectedFolderId(previous =>
+        previous === firstFolderId ? previous : firstFolderId
+      );
+    }
+  }, [foldersData, selectedFolderId]);
+
+  useEffect(() => {
+    const validSongIds = new Set(songsData.map(song => String(song.id)));
+
+    setSelectedSongIds(previous => {
+      const next = previous.filter(songId => validSongIds.has(songId));
+      return isSameStringArray(previous, next) ? previous : next;
+    });
+  }, [songsData]);
+
   // 오늘 배운 곡이 없어요 체크 시 선택된 곡 초기화
   useEffect(() => {
     if (noLessonSong) {
       setSelectedSongIds([]);
     }
   }, [noLessonSong]);
-
-  // useMemo로 검색용 Map 생성
-  const categoryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    categories.forEach(cat => map.set(cat.id, cat.name));
-    return map;
-  }, [categories]);
-
-  const folderMap = useMemo(() => {
-    const map = new Map<string, string>();
-    folders.forEach(folder => map.set(folder.id, folder.name));
-    return map;
-  }, [folders]);
-
-  const songMap = useMemo(() => {
-    const map = new Map<string, string>();
-    songs.forEach(song => map.set(song.id, song.name));
-    return map;
-  }, [songs]);
 
   // 바텀시트 열기 함수
   const handleBottomSheetOpen = (title: string) => {
@@ -158,11 +169,11 @@ export default function FileUpload() {
 
   // 곡 선택 버튼 클릭 핸들러
   const handleSongButtonClick = (songId: string) => {
-    if (!selectedSongIds.includes(songId)) {
-      setSelectedSongIds([...selectedSongIds, songId]);
-    } else {
-      setSelectedSongIds(selectedSongIds.filter(id => id !== songId));
-    }
+    setSelectedSongIds(previous =>
+      previous.includes(songId)
+        ? previous.filter(id => id !== songId)
+        : [...previous, songId]
+    );
   };
 
   // 곡 직접 추가 버튼 클릭 핸들러
@@ -183,8 +194,10 @@ export default function FileUpload() {
       params.append('title', titleInput.value);
     }
 
-    params.append('cat', selectedCategoryId);
-    params.append('fld', selectedFolderId);
+    params.append('cat', effectiveSelectedCategoryId);
+    if (effectiveSelectedFolderId) {
+      params.append('fld', effectiveSelectedFolderId);
+    }
 
     if (selectedSongIds.length > 0) {
       params.append('songs', selectedSongIds.join(','));
@@ -230,18 +243,19 @@ export default function FileUpload() {
   };
 
   const submitLessonNote = () => {
-    if (!uploadedAudioPath) {
+    if (!uploadedAudioPath || !effectiveSelectedCategoryId || !effectiveSelectedFolderId) {
       return;
     }
 
     const songTitles = selectedSongIds
-      .map(songId => songMap.get(songId))
+      .map(getSongTitle)
       .filter((songTitle): songTitle is string => Boolean(songTitle));
 
     createLessonNoteMutation.mutate(
       {
         title: titleInput.value,
-        folderId: Number(selectedFolderId),
+        folderId: Number(effectiveSelectedFolderId),
+        categoryId: Number(effectiveSelectedCategoryId),
         conditionText: memoText,
         songTitles,
         uploadedAudioPath,
@@ -260,30 +274,29 @@ export default function FileUpload() {
     if (bottomSheetTitle === '카테고리') {
       return (
         <SheetSelector
-          options={categories}
-          selected={selectedCategoryId}
+          options={categoriesData}
+          selected={effectiveSelectedCategoryId}
           onSelect={setSelectedCategoryId}
         />
       );
     } else if (bottomSheetTitle === '폴더') {
       return (
         <SheetSelector
-          options={folders}
-          selected={selectedFolderId}
+          options={foldersData}
+          selected={effectiveSelectedFolderId}
           onSelect={setSelectedFolderId}
         />
       );
     } else if (bottomSheetTitle === '레슨 곡 선택') {
       return (
         <SongSelector
-          songs={songs}
+          songs={songsData}
           selectedSongs={selectedSongIds}
           setSelectedSongs={setSelectedSongIds}
           showAllSongs={showAllSongs}
           setShowAllSongs={setShowAllSongs}
           handleSongButtonClick={handleSongButtonClick}
           handleAddSongDirectly={handleAddSongDirectly}
-          songMap={songMap}
         />
       );
     } else if (bottomSheetTitle === '곡 직접 추가') {
@@ -354,7 +367,7 @@ export default function FileUpload() {
                   variant="filter"
                   onClick={() => handleBottomSheetOpen('카테고리')}
                 >
-                  {categoryMap.get(selectedCategoryId) || '보컬'}
+                  {selectedCategoryName}
                 </Chip>
               </div>
               <p className="text-caption2 text-primary-500 mt-2">
@@ -373,7 +386,7 @@ export default function FileUpload() {
                 variant="filter"
                 onClick={() => handleBottomSheetOpen('폴더')}
               >
-                {folderMap.get(selectedFolderId) || '모든노트'}
+                {selectedFolderName}
               </Chip>
             </div>
           </div>
@@ -394,7 +407,7 @@ export default function FileUpload() {
                   레슨 곡 선택
                 </Chip>
                 {selectedSongIds.map((songId, index) => {
-                  const songName = songMap.get(songId);
+                  const songName = getSongTitle(songId);
                   return songName ? (
                     <Chip key={index} variant="filter">
                       {songName}
@@ -453,6 +466,8 @@ export default function FileUpload() {
           disabled={
             (selectedSongIds.length === 0 && !noLessonSong) ||
             !uploadedAudioPath ||
+            !effectiveSelectedCategoryId ||
+            !effectiveSelectedFolderId ||
             createLessonNoteMutation.isPending
           }
           className="w-full"

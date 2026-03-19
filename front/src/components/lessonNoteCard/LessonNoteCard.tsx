@@ -4,6 +4,10 @@ import MiniTag from '@/components/miniTag';
 import type { LessonNoteCardProps } from './LessonNoteCard.types';
 
 export default function LessonNoteCard({
+  title = '레슨 노트 타이틀',
+  createdAt = '2025. 01. 01. 오후 5:09',
+  folderName = '전체노트',
+  songTitles = ['노래1', '노래2'],
   editMode = false,
   selected = false,
   isNew = false,
@@ -37,7 +41,7 @@ export default function LessonNoteCard({
       >
         <div className="flex gap-0.5 items-center">
           <p className="text-subtitle3 text-greyscale-text-title-800">
-            레슨 노트 타이틀
+            {title}
           </p>
           {isNew && (
             <div>
@@ -50,14 +54,15 @@ export default function LessonNoteCard({
       <p
         className={`text-greyscale-neutral-600 text-caption1 ${editMode ? 'ml-10' : ''}`}
       >
-        2025. 01. 01. 오후 5:09
+        {createdAt}
       </p>
       <div className={`flex space-x-2 items-center ${editMode ? 'ml-10' : ''}`}>
-        <MiniTag fill={false}>전체노트</MiniTag>
+        <MiniTag fill={false}>{folderName}</MiniTag>
         <div className="w-px h-4 bg-greyscale-border-300"></div>
         <div className="flex space-x-1">
-          <MiniTag>노래1</MiniTag>
-          <MiniTag>노래2</MiniTag>
+          {songTitles.slice(0, 2).map(song => (
+            <MiniTag key={song}>{song}</MiniTag>
+          ))}
         </div>
       </div>
     </div>

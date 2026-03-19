@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type ApiResponse } from '@/lib/api';
 
 export type LessonNoteStatus =
@@ -49,6 +49,15 @@ export type LessonNoteDetail = {
   lyricsFeedbacks: LessonLyricsFeedback[];
 };
 
+export type RecentLessonNote = {
+  id: number;
+  title: string;
+  status: LessonNoteStatus;
+  folderName: string | null;
+  songTitles: string[];
+  createdAt: string;
+};
+
 type CreatedLessonNote = {
   id: number;
   status: LessonNoteStatus;
@@ -62,6 +71,7 @@ type CreateLessonPayload = {
   audio?: File;
   title?: string;
   folderId?: number;
+  categoryId?: number;
   conditionText?: string;
   songTitles: string[];
   uploadedAudioPath?: string;
@@ -84,6 +94,8 @@ export function useUploadLessonAudio() {
 }
 
 export function useCreateLessonNote() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (payload: CreateLessonPayload) => {
       const formData = new FormData();
@@ -97,6 +109,7 @@ export function useCreateLessonNote() {
             JSON.stringify({
               title: payload.title,
               folderId: payload.folderId,
+              categoryId: payload.categoryId,
               conditionText: payload.conditionText,
               songTitles: payload.songTitles,
               uploadedAudioPath: payload.uploadedAudioPath,
@@ -111,6 +124,39 @@ export function useCreateLessonNote() {
         formData
       );
       return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
+    },
+  });
+}
+
+export function useRecentLessonNotes(categoryId?: string) {
+  return useQuery({
+    queryKey: ['recent-lesson-notes', categoryId],
+    queryFn: async () => {
+      const response = await api.get<ApiResponse<RecentLessonNote[]>>(
+        '/api/v1/notes/recent-lessons',
+        {
+          params: categoryId ? { categoryId } : undefined,
+        }
+      );
+      return response.data.data;
+    },
+    refetchInterval: query =>
+      query.state.data?.some(note => note.status === 'PROCESSING') ? 2000 : false,
+  });
+}
+
+export function useRetryLessonNoteProcessing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (noteId: number) => {
+      await api.post<ApiResponse<void>>(`/api/v1/notes/${noteId}/retry-processing`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
     },
   });
 }

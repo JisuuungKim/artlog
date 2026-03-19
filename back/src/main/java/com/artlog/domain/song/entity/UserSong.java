@@ -1,5 +1,6 @@
 package com.artlog.domain.song.entity;
 
+import com.artlog.domain.category.entity.Category;
 import com.artlog.domain.note.entity.NoteSongTag;
 import com.artlog.domain.user.entity.User;
 import com.artlog.global.entity.BaseTimeEntity;
@@ -28,6 +29,10 @@ public class UserSong extends BaseTimeEntity {
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     // --- 연관관계 ---
 
     @OneToMany(mappedBy = "userSong", cascade = CascadeType.ALL, orphanRemoval = true,
@@ -39,5 +44,9 @@ public class UserSong extends BaseTimeEntity {
 
     public void rename(String title) {
         this.title = title;
+    }
+
+    public void assignCategory(Category category) {
+        this.category = category;
     }
 }

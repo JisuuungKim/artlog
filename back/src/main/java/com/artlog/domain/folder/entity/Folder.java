@@ -1,5 +1,6 @@
 package com.artlog.domain.folder.entity;
 
+import com.artlog.domain.category.entity.Category;
 import com.artlog.domain.note.entity.Note;
 import com.artlog.domain.user.entity.User;
 import com.artlog.global.entity.BaseTimeEntity;
@@ -28,6 +29,10 @@ public class Folder extends BaseTimeEntity {
     @Builder.Default
     private Boolean isSystem = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     // --- 연관관계 ---
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -42,5 +47,9 @@ public class Folder extends BaseTimeEntity {
 
     public void rename(String name) {
         this.name = name;
+    }
+
+    public void assignCategory(Category category) {
+        this.category = category;
     }
 }

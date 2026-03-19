@@ -15,6 +15,8 @@ public class NoteRequest {
 
             Long folderId,
 
+            Long categoryId,
+
             @Size(max = 500, message = "컨디션 메모는 500자 이하여야 합니다.")
             String conditionText,
 

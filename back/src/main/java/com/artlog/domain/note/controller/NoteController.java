@@ -1,19 +1,25 @@
 package com.artlog.domain.note.controller;
 
 import com.artlog.common.dto.ApiResponse;
+import com.artlog.domain.note.dto.NoteRequest.CreateLessonNoteRequest;
 import com.artlog.domain.note.dto.NoteRequest.BulkDeleteRequest;
 import com.artlog.domain.note.dto.NoteRequest.BulkMoveRequest;
 import com.artlog.domain.note.dto.NoteRequest.MoveNoteRequest;
 import com.artlog.domain.note.dto.NoteRequest.RenameNoteRequest;
+import com.artlog.domain.note.dto.NoteResponse.CreatedLessonNote;
+import com.artlog.domain.note.dto.NoteResponse.NoteDetail;
 import com.artlog.domain.note.dto.NoteResponse.NoteSummary;
+import com.artlog.domain.note.dto.NoteResponse.UploadedLessonAudio;
 import com.artlog.domain.note.service.NoteService;
 import com.artlog.domain.user.entity.User;
 import com.artlog.global.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/notes")
@@ -21,6 +27,46 @@ import org.springframework.web.bind.annotation.*;
 public class NoteController {
 
     private final NoteService noteService;
+
+    @PostMapping(value = "/audio-upload", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<UploadedLessonAudio>> uploadLessonAudio(
+            @AuthenticationPrincipal Object principal,
+            @RequestPart("audio") MultipartFile audio
+    ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
+        UploadedLessonAudio uploaded = noteService.uploadLessonAudio(user.getId(), audio);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(uploaded));
+    }
+
+    @PostMapping(value = "/lesson-upload", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<CreatedLessonNote>> createLessonNote(
+            @AuthenticationPrincipal Object principal,
+            @RequestPart(value = "audio", required = false) MultipartFile audio,
+            @Valid @RequestPart("payload") CreateLessonNoteRequest req
+    ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
+        CreatedLessonNote created = noteService.createLessonNote(user.getId(), audio, req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(created));
+    }
+
+    @GetMapping("/{noteId}")
+    public ResponseEntity<ApiResponse<NoteDetail>> getNoteDetail(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable Long noteId
+    ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
+        return ResponseEntity.ok(ApiResponse.ok(noteService.getNoteDetail(user.getId(), noteId)));
+    }
+
+    @PostMapping("/{noteId}/retry-processing")
+    public ResponseEntity<ApiResponse<Void>> retryLessonNoteProcessing(
+            @AuthenticationPrincipal Object principal,
+            @PathVariable Long noteId
+    ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
+        noteService.retryLessonNoteProcessing(user.getId(), noteId);
+        return ResponseEntity.ok(ApiResponse.noContent());
+    }
 
     /**
      * DELETE /api/v1/notes/{noteId}

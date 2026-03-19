@@ -1,50 +1,24 @@
 import { useState } from 'react';
 import Chip from '@/components/common/Chip';
 import { CardList } from '@/components/cardList';
+import type { LessonFeedbackGroup } from '@/hooks/useLessonNote';
 
-// todo: 여기 잘 생각해서 데이터 구조를 짜자
-
-const feedbackItems = {
-  발성: [
-    {
-      id: '1',
-      title: '고음에서 아래를 잡고 위로 올리기',
-      content:
-        '음이 높아질수록 중심이 위로 뜨기 쉬움. 이때 아래(코어, 하체)를 더 강하게 잡으면서 위로 소리를 쏘아 올려야 단단한 소리가 남.',
-    },
-    {
-      id: '2',
-      title: '호흡과 발성의 타이밍',
-      content:
-        '노래 시작 전 과하게 숨을 들이마셔 흐름을 끊지 말고 자연스럽게 시작하기.',
-    },
-  ],
-  발음: [
-    {
-      id: '1',
-      title: '딕션을 입술로 명확하게 응축하기',
-      content:
-        '딕션을 입술로 명확하게 응축하여 소리가 밖으로 퍼지지 않게 잡기.',
-    },
-  ],
-  '음정 · 박자': [],
-  '감정 · 해석': [
-    {
-      id: '1',
-      title: '노래의 감정과 해석',
-      content: '노래의 가사와 멜로디에 담긴 감정을 깊이 이해하고 표현하기.',
-    },
-    {
-      id: '2',
-      title: '감정 표현의 다양성',
-      content:
-        '노래의 각 부분에서 다양한 감정을 표현하여 곡 전체에 풍부한 해석을 더하기.',
-    },
-  ],
+type FeedbackProps = {
+  feedbackGroups?: LessonFeedbackGroup[];
 };
 
-export default function Feedback() {
+export default function Feedback({ feedbackGroups = [] }: FeedbackProps) {
   const [selectedFilter, setSelectedFilter] = useState<string>('전체');
+  const feedbackItems = Object.fromEntries(
+    feedbackGroups.map(group => [
+      group.keyword,
+      group.cards.map(card => ({
+        id: String(card.id),
+        title: card.title,
+        content: card.content,
+      })),
+    ])
+  );
 
   return (
     <div className="flex flex-col">

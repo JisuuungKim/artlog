@@ -104,4 +104,32 @@ public class Note extends BaseTimeEntity {
     public void moveToFolder(Folder folder) {
         this.folder = folder;
     }
+
+    public void markProcessing() {
+        this.status = NoteStatus.PROCESSING;
+    }
+
+    public void prepareForProcessing() {
+        this.keyFeedback = new ArrayList<>();
+        this.practiceGuide = new ArrayList<>();
+        this.nextAssignment = new ArrayList<>();
+        this.feedbackKeywords.clear();
+        this.lyricsFeedbacks.clear();
+        this.status = NoteStatus.PROCESSING;
+    }
+
+    public void completeAnalysis(
+            List<TitleContentItem> keyFeedback,
+            List<TitleContentItem> practiceGuide,
+            List<TitleContentItem> nextAssignment
+    ) {
+        this.keyFeedback = keyFeedback;
+        this.practiceGuide = practiceGuide;
+        this.nextAssignment = nextAssignment;
+        this.status = NoteStatus.COMPLETED;
+    }
+
+    public void markFailed() {
+        this.status = NoteStatus.FAILED;
+    }
 }

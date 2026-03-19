@@ -44,6 +44,7 @@ services:
       - ./back/.env
     volumes:
       - ./back:/app
+      - ./uploads:/uploads
       - gradle-cache:/root/.gradle
     restart: unless-stopped
 

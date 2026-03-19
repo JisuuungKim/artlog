@@ -1,6 +1,7 @@
 import { CardList, type CardListItemData } from '@/components/cardList';
 import { MiniTabs, type MiniTabItem } from '@/components/tabs';
 import { useState } from 'react';
+import type { LessonCardItem } from '@/hooks/useLessonNote';
 
 const growthDataEmpty: CardListItemData[] = [
   {
@@ -10,78 +11,41 @@ const growthDataEmpty: CardListItemData[] = [
   },
 ];
 
-const growthData: CardListItemData[] = [];
-
 const miniTabs: MiniTabItem[] = [
   { id: 'feedback', label: '핵심 피드백' },
   { id: 'guide', label: '연습 가이드' },
 ];
 
-const feedbackSummary: CardListItemData[] = [
-  {
-    id: '1',
-    title: '노래 시작 전 자연스럽게 호흡',
-    content:
-      '노래 시작 전 과하게 숨을 들이마셔 흐름을 끊지 말고 자연스럽게 시작하기.',
-  },
-  {
-    id: '2',
-    title: '입술로 딕션 명확하게 만들기',
-    content: '딕션을 입술로 명확하게 응축하여 소리가 밖으로 퍼지지 않게 잡기.',
-  },
-  {
-    id: '3',
-    title: '목소리의 공명과 울림',
-    content: '목소리가 머리에서 울리는 느낌을 유지하여 공명과 울림을 살리기.',
-  },
-];
+type ReportProps = {
+  keyFeedback?: LessonCardItem[];
+  practiceGuide?: LessonCardItem[];
+  nextAssignment?: LessonCardItem[];
+};
 
-const guideSummary: CardListItemData[] = [
-  {
-    id: '1',
-    title: '호흡과 발성 연습',
-    content: '노래 시작 전 호흡과 발성 연습을 통해 자연스러운 시작을 연습하기.',
-  },
-  {
-    id: '2',
-    title: '딕션 연습',
-    content:
-      '딕션 연습을 통해 입술로 소리를 명확하게 응축하는 방법을 연습하기.',
-  },
-  {
-    id: '3',
-    title: '공명과 울림 살리는 발성 연습',
-    content:
-      '공명과 울림을 살리는 발성 연습을 통해 목소리가 머리에서 울리는 느낌을 유지하기.',
-  },
-];
+function toCardItems(items: LessonCardItem[]): CardListItemData[] {
+  return items.map((item, index) => ({
+    id: String(index + 1),
+    title: item.title ?? undefined,
+    content: item.content,
+  }));
+}
 
-const nextSteps: CardListItemData[] = [
-  {
-    id: '1',
-    content: '노래 시작 전 호흡과 발성 연습을 통해 자연스러운 시작을 연습하기.',
-  },
-  {
-    id: '2',
-    content:
-      '딕션 연습을 통해 입술로 소리를 명확하게 응축하는 방법을 연습하기.',
-  },
-  {
-    id: '3',
-    content:
-      '공명과 울림을 살리는 발성 연습을 통해 목소리가 머리에서 울리는 느낌을 유지하기.',
-  },
-];
-
-export default function Report() {
+export default function Report({
+  keyFeedback = [],
+  practiceGuide = [],
+  nextAssignment = [],
+}: ReportProps) {
   const [activeTab, setActiveTab] = useState('feedback');
+  const feedbackSummary = toCardItems(keyFeedback);
+  const guideSummary = toCardItems(practiceGuide);
+  const nextSteps = toCardItems(nextAssignment);
 
   return (
     <div className="py-10 px-5 flex flex-col gap-15">
       <div>
         <p className="text-subtitle3 mb-4">성장 리포트</p>
         <CardList
-          items={growthData.length > 0 ? growthData : growthDataEmpty}
+          items={growthDataEmpty}
           showTitle
         />
       </div>
@@ -94,14 +58,25 @@ export default function Report() {
           />
         </div>
         {activeTab === 'feedback' ? (
-          <CardList items={feedbackSummary} showTitle showNumbering />
+          <CardList
+            items={feedbackSummary.length > 0 ? feedbackSummary : growthDataEmpty}
+            showTitle
+            showNumbering
+          />
         ) : (
-          <CardList items={guideSummary} showTitle showNumbering />
+          <CardList
+            items={guideSummary.length > 0 ? guideSummary : growthDataEmpty}
+            showTitle
+            showNumbering
+          />
         )}
       </div>
       <div>
         <p className="text-subtitle3 mb-4">다음 레슨 과제</p>
-        <CardList items={nextSteps} showTitle={false} />
+        <CardList
+          items={nextSteps.length > 0 ? nextSteps : growthDataEmpty}
+          showTitle={false}
+        />
       </div>
     </div>
   );

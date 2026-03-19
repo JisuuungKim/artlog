@@ -3,14 +3,13 @@ import {
   ArrowRightGreyscale500Icon,
 } from '@/assets/icons';
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import MiniTag from '@/components/miniTag';
 import Chip from '@/components/common/Chip';
 import Tabs from '@/components/tabs';
 import Report from './components/Report';
 import Feedback from './components/Feedback';
-
-// 레슨곡 배열
-const lessonSongs = ['누가 죄인인가', '작은 별', '생일 축하합니다'];
+import { useLessonNote } from '@/hooks/useLessonNote';
 
 // tab 데이터
 const tabs = [
@@ -19,10 +18,22 @@ const tabs = [
 ];
 
 export default function LessonDetail() {
-  // const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
+  const { data } = useLessonNote(id);
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAllSongs, setShowAllSongs] = useState(false);
   const [activeTab, setActiveTab] = useState(tabs[0].id);
+  const lessonSongs = data?.songTitles ?? [];
+  const formattedDate = data?.createdAt
+    ? new Date(data.createdAt).toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        weekday: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : '2025. 01. 01. (월) 오후 5:00';
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -47,10 +58,10 @@ export default function LessonDetail() {
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
                 <h1 className="text-subtitle1 text-greyscale-text-title-900 truncate max-w-[288px]">
-                  2026.01.20. 레슨노트
+                  {data?.title ?? '2026.01.20. 레슨노트'}
                 </h1>
                 <div className="flex items-center gap-0.5 text-caption1 text-greyscale-neutral-600">
-                  <span>2025. 01. 01. (월) 오후 5:00</span>
+                  <span>{formattedDate}</span>
                   <span>·</span>
                   <span>1시간</span>
                 </div>
@@ -83,7 +94,7 @@ export default function LessonDetail() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Chip variant="filter">모든 노트</Chip>
+                  <Chip variant="filter">{data?.folderName ?? '모든 노트'}</Chip>
                 </div>
               </div>
 
@@ -99,7 +110,6 @@ export default function LessonDetail() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {/* 레슨곡이 2개 이상이고 전체 표시가 false인 경우 첫 번째만 표시 */}
                   {lessonSongs.length >= 2 && !showAllSongs ? (
                     <>
                       <Chip variant="filter">{lessonSongs[0]}</Chip>
@@ -138,7 +148,7 @@ export default function LessonDetail() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Chip variant="default">
-                    컨디션은 좋았지만 목이 까끌거리고 아픔
+                    {data?.conditionText ?? '컨디션은 좋았지만 목이 까끌거리고 아픔'}
                   </Chip>
                 </div>
               </div>
@@ -150,8 +160,16 @@ export default function LessonDetail() {
         <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
         {/* 탭 컨텐츠 */}
-        {activeTab === 'report' && <Report />}
-        {activeTab === 'feedback' && <Feedback />}
+        {activeTab === 'report' && (
+          <Report
+            keyFeedback={data?.keyFeedback}
+            practiceGuide={data?.practiceGuide}
+            nextAssignment={data?.nextAssignment}
+          />
+        )}
+        {activeTab === 'feedback' && (
+          <Feedback feedbackGroups={data?.feedbackGroups} />
+        )}
       </div>
     </>
   );

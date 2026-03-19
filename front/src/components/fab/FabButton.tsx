@@ -1,7 +1,8 @@
 import { PlusGreyscale50Icon } from '@/assets/icons';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { UploadGreyscale800Icon } from '@/assets/icons';
 import { useNavigate } from 'react-router-dom';
+import { useUploadLessonAudio } from '@/hooks/useLessonNote';
 
 export interface FabButtonProps {
   className?: string;
@@ -9,14 +10,33 @@ export interface FabButtonProps {
 
 const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const uploadLessonAudioMutation = useUploadLessonAudio();
 
   const toggle = () => {
     setIsExpanded(!isExpanded);
   };
 
   const handleLessonNote = () => {
-    navigate('/lessons/new');
+    fileInputRef.current?.click();
+  };
+
+  const handleAudioSelected = (file?: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    uploadLessonAudioMutation.mutate(file, {
+      onSuccess: uploaded => {
+        sessionStorage.setItem(
+          'pendingLessonAudio',
+          JSON.stringify({ uploadedAudioPath: uploaded.uploadedAudioPath })
+        );
+        setIsExpanded(false);
+        navigate('/lessons/new');
+      },
+    });
   };
 
   return (
@@ -52,12 +72,23 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
         <button
           onClick={toggle}
           className={`bg-primary-500 overflow-hidden relative rounded-full w-14 h-14 flex items-center justify-center ${className}`}
+          disabled={uploadLessonAudioMutation.isPending}
         >
           <PlusGreyscale50Icon
             className={`w-6 h-6 transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}
           />
         </button>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={event => {
+          handleAudioSelected(event.target.files?.[0] ?? null);
+          event.target.value = '';
+        }}
+      />
     </>
   );
 };

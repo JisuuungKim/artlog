@@ -1,13 +1,14 @@
 import AppBar from '@/components/appBar';
 import LyricsCard from './components/LyricsCard';
 import { XGreyscale800Icon } from '@/assets/icons';
+import { useParams } from 'react-router-dom';
+import { useLessonNote } from '@/hooks/useLessonNote';
 
 export default function LessonLyrics() {
-  const feedback = {
-    problem: '시작할 때 숨을 들이마시며 소리를 띄우려 함.',
-    solve:
-      '숨을 마시는 지점부터 시작하지 말고, 가고자 하는 방향으로 바로 소리를 시작. 호흡이 아닌 기운으로 공기를 먼저 만들어야 함.',
-  };
+  const { id } = useParams<{ id: string }>();
+  const { data } = useLessonNote(id);
+  const feedbacks = data?.lyricsFeedbacks ?? [];
+
   return (
     <div>
       <AppBar variant="icons-left-only" leftIcon={<XGreyscale800Icon />} />
@@ -19,22 +20,17 @@ export default function LessonLyrics() {
           가사를 탭해 상세 내용을 펼치거나 접을 수 있어요.
         </p>
         <div className="mt-10 flex flex-col gap-3">
-          {/* todo: 애니메이션 어떻게 하면 좋을지 물어보기 */}
-          <LyricsCard
-            lyrics="지금 이 순간 지금 여기"
-            feedbackTitle="호흡이 아닌 기운으로 공기를 만들기"
-            feedback={feedback}
-          />
-          <LyricsCard
-            lyrics="지금 이 순간 지금 여기"
-            feedbackTitle="호흡이 아닌 기운으로 공기를 만들기"
-            feedback={feedback}
-          />
-          <LyricsCard
-            lyrics="지금 이 순간 지금 여기"
-            feedbackTitle="호흡이 아닌 기운으로 공기를 만들기"
-            feedback={feedback}
-          />
+          {feedbacks.map(item => (
+            <LyricsCard
+              key={item.id}
+              lyrics={item.lineText ?? ''}
+              feedbackTitle={item.feedbackTitle ?? ''}
+              feedback={{
+                problem: item.problemText ?? '',
+                solve: item.solutionText ?? '',
+              }}
+            />
+          ))}
         </div>
       </div>
     </div>

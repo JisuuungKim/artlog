@@ -2,6 +2,11 @@ spring:
   application:
     name: artlog
 
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:100MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:100MB}
+
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -51,6 +56,10 @@ app:
     audience: ${APPLE_CLIENT_ID:}
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}
     public-key-url: ${APPLE_PUBLIC_KEY_URL:https://appleid.apple.com/auth/keys}
+  ai:
+    base-url: ${AI_BASE_URL:http://localhost:8001}
+  storage:
+    upload-dir: ${APP_UPLOAD_DIR:/uploads}
 
 management:
   endpoints:

@@ -14,6 +14,7 @@ import SongSelector from '@/pages/lessons/new/components/SongSelector';
 import TextInput from '@/components/textInput';
 import InputButton from '@/components/common/InputButton';
 import DialogModal from '@/components/modal/DialogModal';
+import { useCreateLessonNote } from '@/hooks/useLessonNote';
 
 // dummy data
 const categories: SheetOption[] = [
@@ -41,11 +42,13 @@ const songs: SheetOption[] = [
 export default function FileUpload() {
   const navigate = useNavigate();
   const location = useLocation();
+  const createLessonNoteMutation = useCreateLessonNote();
 
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState('1');
   const [selectedFolderId, setSelectedFolderId] = useState('1');
   const [memoText, setMemoText] = useState('');
+  const [uploadedAudioPath, setUploadedAudioPath] = useState<string | null>(null);
 
   const [noLessonSong, setNoLessonSong] = useState(false);
 
@@ -101,6 +104,20 @@ export default function FileUpload() {
       setMemoText(memo);
     }
   }, [location.search]);
+
+  useEffect(() => {
+    const pendingAudio = sessionStorage.getItem('pendingLessonAudio');
+    if (!pendingAudio) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(pendingAudio) as { uploadedAudioPath?: string };
+      setUploadedAudioPath(parsed.uploadedAudioPath ?? null);
+    } catch {
+      setUploadedAudioPath(null);
+    }
+  }, []);
 
   // 오늘 배운 곡이 없어요 체크 시 선택된 곡 초기화
   useEffect(() => {
@@ -181,6 +198,11 @@ export default function FileUpload() {
   };
 
   const handleUpload = () => {
+    if (!uploadedAudioPath) {
+      console.error('업로드된 오디오 파일이 없습니다.');
+      return;
+    }
+
     // 첫 번째로 보여줄 모달 결정
     if (modalsVisibility.iphoneInfo) {
       setCurrentModal('iphoneInfo');
@@ -199,12 +221,38 @@ export default function FileUpload() {
         setCurrentModal('mobileData');
       } else {
         setCurrentModal('none');
-        navigate('/lessons/1');
+        submitLessonNote();
       }
     } else if (currentModal === 'mobileData') {
       setCurrentModal('none');
-      navigate('/lessons/1');
+      submitLessonNote();
     }
+  };
+
+  const submitLessonNote = () => {
+    if (!uploadedAudioPath) {
+      return;
+    }
+
+    const songTitles = selectedSongIds
+      .map(songId => songMap.get(songId))
+      .filter((songTitle): songTitle is string => Boolean(songTitle));
+
+    createLessonNoteMutation.mutate(
+      {
+        title: titleInput.value,
+        folderId: Number(selectedFolderId),
+        conditionText: memoText,
+        songTitles,
+        uploadedAudioPath,
+      },
+      {
+        onSuccess: created => {
+          sessionStorage.removeItem('pendingLessonAudio');
+          navigate(`/lessons/${created.id}`);
+        },
+      }
+    );
   };
 
   // 바텀시트 콘텐츠 렌더링 함수
@@ -402,7 +450,11 @@ export default function FileUpload() {
         <Button
           hierarchy="primary"
           size="large"
-          disabled={selectedSongIds.length === 0 && !noLessonSong}
+          disabled={
+            (selectedSongIds.length === 0 && !noLessonSong) ||
+            !uploadedAudioPath ||
+            createLessonNoteMutation.isPending
+          }
           className="w-full"
           onClick={handleUpload}
         >

@@ -9,6 +9,20 @@ import java.util.List;
 
 public class NoteRequest {
 
+    public record CreateLessonNoteRequest(
+            @Size(max = 255, message = "노트 제목은 255자 이하여야 합니다.")
+            String title,
+
+            Long folderId,
+
+            @Size(max = 500, message = "컨디션 메모는 500자 이하여야 합니다.")
+            String conditionText,
+
+            List<String> songTitles,
+
+            String uploadedAudioPath
+    ) {}
+
     public record RenameNoteRequest(
             @NotBlank(message = "노트 제목은 필수입니다.")
             @Size(max = 255, message = "노트 제목은 255자 이하여야 합니다.")

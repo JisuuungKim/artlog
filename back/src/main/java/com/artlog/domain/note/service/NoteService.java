@@ -5,17 +5,40 @@ import com.artlog.domain.folder.entity.Folder;
 import com.artlog.domain.folder.repository.FolderRepository;
 import com.artlog.domain.note.dto.NoteRequest.BulkDeleteRequest;
 import com.artlog.domain.note.dto.NoteRequest.BulkMoveRequest;
+import com.artlog.domain.note.dto.NoteRequest.CreateLessonNoteRequest;
 import com.artlog.domain.note.dto.NoteRequest.MoveNoteRequest;
 import com.artlog.domain.note.dto.NoteRequest.RenameNoteRequest;
+import com.artlog.domain.note.dto.NoteResponse.CreatedLessonNote;
+import com.artlog.domain.note.dto.NoteResponse.NoteDetail;
 import com.artlog.domain.note.dto.NoteResponse.NoteSummary;
+import com.artlog.domain.note.dto.NoteResponse.UploadedLessonAudio;
 import com.artlog.domain.note.entity.Note;
+import com.artlog.domain.note.entity.NoteSongTag;
+import com.artlog.domain.note.entity.NoteStatus;
 import com.artlog.domain.note.entity.NoteType;
 import com.artlog.domain.note.repository.NoteRepository;
+import com.artlog.domain.song.entity.UserSong;
+import com.artlog.domain.song.repository.UserSongRepository;
+import com.artlog.domain.user.entity.User;
+import com.artlog.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +47,12 @@ public class NoteService {
 
     private final NoteRepository noteRepository;
     private final FolderRepository folderRepository;
+    private final UserRepository userRepository;
+    private final UserSongRepository userSongRepository;
+    private final LessonNoteProcessingService lessonNoteProcessingService;
+
+    @Value("${app.storage.upload-dir}")
+    private String uploadDir;
 
     /** 특정 폴더의 노트 목록 조회 (type: ALL → null, LESSON, PRACTICE) */
     public List<NoteSummary> getNotesByFolder(Long userId, Long folderId, String type) {
@@ -39,6 +68,77 @@ public class NoteService {
                 .stream()
                 .map(NoteSummary::from)
                 .toList();
+    }
+
+    @Transactional
+    public UploadedLessonAudio uploadLessonAudio(Long userId, MultipartFile audio) {
+        userRepository.findByIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
+
+        if (audio == null || audio.isEmpty()) {
+            throw ArtlogException.badRequest("오디오 파일은 필수입니다.");
+        }
+
+        return new UploadedLessonAudio(storeAudioFile(audio).toString());
+    }
+
+    @Transactional
+    public CreatedLessonNote createLessonNote(
+            Long userId,
+            MultipartFile audio,
+            CreateLessonNoteRequest req
+    ) {
+        User user = userRepository.findByIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
+
+        Note note = Note.builder()
+                .user(user)
+                .folder(resolveFolder(userId, req.folderId()))
+                .noteType(NoteType.LESSON)
+                .title(resolveTitle(req.title()))
+                .recordingUrl(resolveRecordingUrl(audio, req.uploadedAudioPath()))
+                .keyFeedback(List.of())
+                .practiceGuide(List.of())
+                .nextAssignment(List.of())
+                .status(NoteStatus.PROCESSING)
+                .conditionText(trimToNull(req.conditionText()))
+                .startTime(OffsetDateTime.now())
+                .build();
+
+        attachSongs(note, user, req.songTitles());
+
+        Note saved = noteRepository.save(note);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                lessonNoteProcessingService.process(saved.getId());
+            }
+        });
+        return CreatedLessonNote.from(saved);
+    }
+
+    public NoteDetail getNoteDetail(Long userId, Long noteId) {
+        Note note = getNoteAndVerifyOwner(userId, noteId);
+        return NoteDetail.from(note);
+    }
+
+    @Transactional
+    public void retryLessonNoteProcessing(Long userId, Long noteId) {
+        Note note = getNoteAndVerifyOwner(userId, noteId);
+        if (note.getNoteType() != NoteType.LESSON) {
+            throw ArtlogException.badRequest("레슨 노트만 재처리할 수 있습니다.");
+        }
+        if (trimToNull(note.getRecordingUrl()) == null) {
+            throw ArtlogException.badRequest("재처리할 오디오 파일이 없습니다.");
+        }
+
+        note.prepareForProcessing();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                lessonNoteProcessingService.process(note.getId());
+            }
+        });
     }
 
     /** 노트 삭제 */
@@ -93,6 +193,106 @@ public class NoteService {
             throw ArtlogException.forbidden("해당 폴더에 접근할 권한이 없습니다.");
         }
         return folder;
+    }
+
+    private Folder resolveFolder(Long userId, Long folderId) {
+        if (folderId != null) {
+            return folderRepository.findById(folderId)
+                    .filter(folder -> folder.getUser().getId().equals(userId))
+                    .orElseGet(() -> folderRepository.findByUserIdAndIsSystemTrue(userId).orElse(null));
+        }
+
+        return folderRepository.findByUserIdAndIsSystemTrue(userId).orElse(null);
+    }
+
+    private void attachSongs(Note note, User user, List<String> songTitles) {
+        if (songTitles == null) {
+            return;
+        }
+
+        songTitles.stream()
+                .map(this::trimToNull)
+                .filter(title -> title != null)
+                .distinct()
+                .map(title -> findOrCreateSong(user, title))
+                .map(song -> NoteSongTag.builder()
+                        .note(note)
+                        .userSong(song)
+                        .build())
+                .forEach(note.getNoteSongTags()::add);
+    }
+
+    private UserSong findOrCreateSong(User user, String title) {
+        return userSongRepository.findByUserIdAndTitleIgnoreCase(user.getId(), title)
+                .orElseGet(() -> userSongRepository.save(UserSong.builder()
+                        .user(user)
+                        .title(title)
+                        .build()));
+    }
+
+    private Path storeAudioFile(MultipartFile audio) {
+        String extension = extractExtension(audio.getOriginalFilename());
+        Path directory = Path.of(uploadDir);
+        Path filePath = directory.resolve(UUID.randomUUID() + extension);
+
+        try {
+            Files.createDirectories(directory);
+            Files.copy(audio.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            return filePath;
+        } catch (IOException exception) {
+            throw new ArtlogException(HttpStatus.INTERNAL_SERVER_ERROR, "오디오 파일 저장에 실패했습니다.");
+        }
+    }
+
+    private String resolveRecordingUrl(MultipartFile audio, String uploadedAudioPath) {
+        if (audio != null && !audio.isEmpty()) {
+            return storeAudioFile(audio).toString();
+        }
+
+        String normalizedPath = trimToNull(uploadedAudioPath);
+        if (normalizedPath == null) {
+            throw ArtlogException.badRequest("오디오 파일은 필수입니다.");
+        }
+
+        Path uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
+        Path resolvedPath = Path.of(normalizedPath).toAbsolutePath().normalize();
+
+        if (!resolvedPath.startsWith(uploadRoot) || !Files.exists(resolvedPath)) {
+            throw ArtlogException.badRequest("유효하지 않은 업로드 파일 경로입니다.");
+        }
+
+        return resolvedPath.toString();
+    }
+
+    private String resolveTitle(String title) {
+        String normalized = trimToNull(title);
+        if (normalized != null) {
+            return normalized;
+        }
+
+        return OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd. 레슨노트", Locale.KOREA));
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private String extractExtension(String fileName) {
+        if (fileName == null) {
+            return ".m4a";
+        }
+
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex < 0) {
+            return ".m4a";
+        }
+
+        return fileName.substring(dotIndex);
     }
 
     private NoteType resolveNoteType(String type) {

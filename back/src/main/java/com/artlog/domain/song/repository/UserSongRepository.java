@@ -10,6 +10,8 @@ import java.util.Optional;
 
 public interface UserSongRepository extends JpaRepository<UserSong, Long> {
 
+    Optional<UserSong> findByUserIdAndTitleIgnoreCase(Long userId, String title);
+
     /** 특정 유저의 카테고리별 노래 목록(해당 카테고리에 노트가 있는 곡) */
     @Query("SELECT DISTINCT nst.userSong FROM NoteSongTag nst" +
            " WHERE nst.note.user.id = :userId" +

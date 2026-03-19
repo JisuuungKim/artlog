@@ -19,8 +19,9 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
             @Param("categoryId") Long categoryId
     );
 
-    /** 유저의 시스템 폴더('모든 노트') 조회 */
-    Optional<Folder> findByUserIdAndIsSystemTrue(Long userId);
+    Optional<Folder> findByIdAndUser_Id(Long folderId, Long userId);
+
+    Optional<Folder> findByIdAndUser_IdAndCategory_Id(Long folderId, Long userId, Long categoryId);
 
     Optional<Folder> findFirstByUserIdAndCategory_IdAndNameOrderByCreatedAtAsc(Long userId, Long categoryId, String name);
 

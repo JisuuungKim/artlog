@@ -2,7 +2,7 @@ package com.artlog.domain.note.service;
 
 import com.artlog.common.exception.ArtlogException;
 import com.artlog.domain.category.entity.Category;
-import com.artlog.domain.category.repository.CategoryRepository;
+import com.artlog.domain.category.service.CategoryFolderPolicyService;
 import com.artlog.domain.folder.entity.Folder;
 import com.artlog.domain.folder.repository.FolderRepository;
 import com.artlog.domain.note.dto.NoteRequest.BulkDeleteRequest;
@@ -47,11 +47,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NoteService {
-
-    private static final String DEFAULT_FOLDER_NAME = "전체노트";
-    private static final String DEFAULT_CATEGORY_NAME = "보컬";
-
-    private final CategoryRepository categoryRepository;
+    private final CategoryFolderPolicyService categoryFolderPolicyService;
     private final NoteRepository noteRepository;
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
@@ -63,12 +59,7 @@ public class NoteService {
 
     /** 특정 폴더의 노트 목록 조회 (type: ALL → null, LESSON, PRACTICE) */
     public List<NoteSummary> getNotesByFolder(Long userId, Long folderId, String type) {
-        // 폴더 소유자 검증
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없습니다."));
-        if (!folder.getUser().getId().equals(userId)) {
-            throw ArtlogException.forbidden("해당 폴더에 접근할 권한이 없습니다.");
-        }
+        getFolderAndVerifyOwner(userId, folderId);
 
         NoteType noteType = resolveNoteType(type);
         return noteRepository.findByFolderAndType(folderId, userId, noteType)
@@ -108,11 +99,11 @@ public class NoteService {
     ) {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
-        Category category = resolveCategory(req.categoryId());
+        Category category = categoryFolderPolicyService.resolveCategory(req.categoryId());
 
         Note note = Note.builder()
                 .user(user)
-                .folder(resolveFolder(userId, req.folderId(), category))
+                .folder(categoryFolderPolicyService.resolveFolder(user, req.folderId(), category))
                 .noteType(NoteType.LESSON)
                 .title(resolveTitle(req.title()))
                 .recordingUrl(resolveRecordingUrl(audio, req.uploadedAudioPath()))
@@ -127,12 +118,7 @@ public class NoteService {
         attachSongs(note, user, category, req.songTitles());
 
         Note saved = noteRepository.save(note);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                lessonNoteProcessingService.process(saved.getId());
-            }
-        });
+        triggerLessonProcessingAfterCommit(saved.getId());
         return CreatedLessonNote.from(saved);
     }
 
@@ -152,12 +138,7 @@ public class NoteService {
         }
 
         note.prepareForProcessing();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                lessonNoteProcessingService.process(note.getId());
-            }
-        });
+        triggerLessonProcessingAfterCommit(note.getId());
     }
 
     /** 노트 삭제 */
@@ -206,31 +187,8 @@ public class NoteService {
     }
 
     private Folder getFolderAndVerifyOwner(Long userId, Long folderId) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없습니다."));
-        if (!folder.getUser().getId().equals(userId)) {
-            throw ArtlogException.forbidden("해당 폴더에 접근할 권한이 없습니다.");
-        }
-        return folder;
-    }
-
-    private Folder resolveFolder(Long userId, Long folderId, Category category) {
-        if (folderId != null) {
-            return folderRepository.findById(folderId)
-                    .filter(folder -> folder.getUser().getId().equals(userId))
-                    .filter(folder -> folder.getCategory() != null && folder.getCategory().getId().equals(category.getId()))
-                    .orElseGet(() -> findDefaultFolder(userId, category.getId()).orElse(null));
-        }
-
-        return findDefaultFolder(userId, category.getId()).orElse(null);
-    }
-
-    private java.util.Optional<Folder> findDefaultFolder(Long userId, Long categoryId) {
-        return folderRepository.findFirstByUserIdAndCategory_IdAndNameOrderByCreatedAtAsc(
-                userId,
-                categoryId,
-                DEFAULT_FOLDER_NAME
-        ).or(() -> folderRepository.findFirstByUserIdAndCategory_IdOrderByCreatedAtAsc(userId, categoryId));
+        return folderRepository.findByIdAndUser_Id(folderId, userId)
+                .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없거나 접근 권한이 없습니다."));
     }
 
     private void attachSongs(Note note, User user, Category category, List<String> songTitles) {
@@ -259,15 +217,13 @@ public class NoteService {
                         .build()));
     }
 
-    private Category resolveCategory(Long categoryId) {
-        if (categoryId != null) {
-            return categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> ArtlogException.notFound("카테고리를 찾을 수 없습니다."));
-        }
-
-        return categoryRepository.findFirstByNameIgnoreCaseOrderByCreatedAtAsc(DEFAULT_CATEGORY_NAME)
-                .or(() -> categoryRepository.findAllByOrderByCreatedAtAsc().stream().findFirst())
-                .orElseThrow(() -> ArtlogException.notFound("카테고리를 찾을 수 없습니다."));
+    private void triggerLessonProcessingAfterCommit(Long noteId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                lessonNoteProcessingService.process(noteId);
+            }
+        });
     }
 
     private Path storeAudioFile(MultipartFile audio) {

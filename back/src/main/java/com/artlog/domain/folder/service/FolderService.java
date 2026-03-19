@@ -2,7 +2,7 @@ package com.artlog.domain.folder.service;
 
 import com.artlog.common.exception.ArtlogException;
 import com.artlog.domain.category.entity.Category;
-import com.artlog.domain.category.repository.CategoryRepository;
+import com.artlog.domain.category.service.CategoryFolderPolicyService;
 import com.artlog.domain.folder.dto.FolderRequest.CreateFolderRequest;
 import com.artlog.domain.folder.dto.FolderRequest.RenameFolderRequest;
 import com.artlog.domain.folder.dto.FolderResponse.FolderSummary;
@@ -20,10 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FolderService {
-
-    private static final String DEFAULT_FOLDER_NAME = "전체노트";
-
-    private final CategoryRepository categoryRepository;
+    private final CategoryFolderPolicyService categoryFolderPolicyService;
     private final FolderRepository folderRepository;
     private final NoteRepository noteRepository;
 
@@ -38,8 +35,7 @@ public class FolderService {
     /** 새 폴더 생성 */
     @Transactional
     public FolderSummary createFolder(User user, CreateFolderRequest req) {
-        Category category = categoryRepository.findById(req.categoryId())
-                .orElseThrow(() -> ArtlogException.notFound("카테고리를 찾을 수 없습니다."));
+        Category category = categoryFolderPolicyService.resolveCategory(req.categoryId());
 
         Folder folder = Folder.builder()
                 .name(req.name())
@@ -80,15 +76,12 @@ public class FolderService {
         }
 
         Long categoryId = folder.getCategory() != null ? folder.getCategory().getId() : null;
-        Folder targetFolder = folderRepository.findFirstByUserIdAndCategory_IdAndNameOrderByCreatedAtAsc(userId, categoryId, DEFAULT_FOLDER_NAME)
-                .filter(defaultFolder -> !defaultFolder.getId().equals(folderId))
-                .or(() -> folderRepository.findFirstByUserIdAndCategory_IdAndIdNotOrderByCreatedAtAsc(userId, categoryId, folderId))
-                .orElseGet(() -> folderRepository.save(Folder.builder()
-                        .name(DEFAULT_FOLDER_NAME)
-                        .user(folder.getUser())
-                        .isSystem(false)
-                        .category(folder.getCategory())
-                        .build()));
+        Folder targetFolder = folderRepository.findFirstByUserIdAndCategory_IdAndIdNotOrderByCreatedAtAsc(
+                        userId,
+                        categoryId,
+                        folderId
+                )
+                .orElseGet(() -> categoryFolderPolicyService.createDefaultFolder(folder.getUser(), folder.getCategory()));
 
         // 소속 노트를 기본 폴더(또는 다른 첫 폴더)로 벌크 이동
         noteRepository.moveFolderNotes(folderId, targetFolder.getId(), userId);
@@ -99,11 +92,7 @@ public class FolderService {
     // --- 내부 헬퍼 ---
 
     private Folder getFolderAndVerifyOwner(Long userId, Long folderId) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없습니다."));
-        if (!folder.getUser().getId().equals(userId)) {
-            throw ArtlogException.forbidden("해당 폴더에 접근할 권한이 없습니다.");
-        }
-        return folder;
+        return folderRepository.findByIdAndUser_Id(folderId, userId)
+                .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없거나 접근 권한이 없습니다."));
     }
 }

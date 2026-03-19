@@ -161,6 +161,57 @@ export function useRetryLessonNoteProcessing() {
   });
 }
 
+export function useRenameLessonNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ noteId, title }: { noteId: number; title: string }) => {
+      await api.patch<ApiResponse<void>>(`/api/v1/notes/${noteId}/title`, {
+        title,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folder-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['song-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
+    },
+  });
+}
+
+export function useDeleteLessonNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (noteId: number) => {
+      await api.delete<ApiResponse<void>>(`/api/v1/notes/${noteId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folder-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['song-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+    },
+  });
+}
+
+export function useMoveLessonNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ noteId, folderId }: { noteId: number; folderId: number }) => {
+      await api.patch<ApiResponse<void>>(`/api/v1/notes/${noteId}/move`, {
+        folderId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folder-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['song-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+    },
+  });
+}
+
 export function useLessonNote(noteId?: string) {
   return useQuery({
     queryKey: ['lesson-note', noteId],

@@ -89,6 +89,38 @@ export function useCreateFolder() {
   });
 }
 
+export function useRenameFolder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ folderId, name }: { folderId: number; name: string }) => {
+      const response = await api.patch<ApiResponse<FolderSummary>>(
+        `/api/v1/folders/${folderId}`,
+        { name }
+      );
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      queryClient.invalidateQueries({ queryKey: ['folder-notes'] });
+    },
+  });
+}
+
+export function useDeleteFolder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (folderId: number) => {
+      await api.delete<ApiResponse<void>>(`/api/v1/folders/${folderId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      queryClient.invalidateQueries({ queryKey: ['folder-notes'] });
+    },
+  });
+}
+
 export function useFolderNotes(folderId?: string) {
   return useQuery({
     queryKey: ['folder-notes', folderId],
@@ -123,6 +155,38 @@ export function useSongNotes(songId?: string) {
         `/api/v1/songs/${songId}/notes`
       );
       return response.data.data;
+    },
+  });
+}
+
+export function useRenameSong() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ songId, title }: { songId: number; title: string }) => {
+      const response = await api.patch<ApiResponse<SongSummary>>(
+        `/api/v1/songs/${songId}`,
+        { title }
+      );
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+      queryClient.invalidateQueries({ queryKey: ['song-notes'] });
+    },
+  });
+}
+
+export function useDeleteSong() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (songId: number) => {
+      await api.delete<ApiResponse<void>>(`/api/v1/songs/${songId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+      queryClient.invalidateQueries({ queryKey: ['song-notes'] });
     },
   });
 }

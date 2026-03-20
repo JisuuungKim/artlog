@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -42,7 +41,6 @@ public class LessonNoteProcessingService {
     @Value("${app.ai.base-url}")
     private String aiBaseUrl;
 
-    @Async
     public void process(Long noteId) {
         try {
             AiJobPayload payload = transactionTemplate.execute(status -> {

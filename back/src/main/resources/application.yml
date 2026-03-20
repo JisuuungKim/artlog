@@ -58,6 +58,9 @@ app:
     public-key-url: ${APPLE_PUBLIC_KEY_URL:https://appleid.apple.com/auth/keys}
   ai:
     base-url: ${AI_BASE_URL:http://localhost:8001}
+    queue:
+      poll-delay-ms: ${AI_QUEUE_POLL_DELAY_MS:1000}
+      batch-size: ${AI_QUEUE_BATCH_SIZE:3}
   storage:
     upload-dir: ${APP_UPLOAD_DIR:/uploads}
 

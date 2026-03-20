@@ -52,7 +52,7 @@ public class NoteService {
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
     private final UserSongRepository userSongRepository;
-    private final LessonNoteProcessingService lessonNoteProcessingService;
+    private final LessonNoteJobQueueService lessonNoteJobQueueService;
 
     @Value("${app.storage.upload-dir}")
     private String uploadDir;
@@ -221,7 +221,7 @@ public class NoteService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                lessonNoteProcessingService.process(noteId);
+                lessonNoteJobQueueService.enqueue(noteId);
             }
         });
     }

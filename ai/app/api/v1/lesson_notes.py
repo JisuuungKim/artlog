@@ -35,6 +35,8 @@ async def generate_lesson_note(
         "keywords": [kw.model_dump() for kw in body.keywords],
         "transcript": "",
         "lesson_note": None,
+        "needs_regeneration": False,
+        "review_feedback": None,
         "errors": [],
         "retry_count": 0,
     }

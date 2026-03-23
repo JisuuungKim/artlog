@@ -1,11 +1,11 @@
 """
 LangGraph 워크플로우 정의.
 
-4단계 파이프라인:
-  stt → correction → planner → executor
+현재 파이프라인:
+  stt → correction → feedback_analysis → lesson_note → review_lesson_note
 
-각 노드는 현재 placeholder 구현으로 작성되어 있습니다.
-실제 LLM 호출 로직을 추가할 준비가 된 구조입니다.
+review_lesson_note 가 섹션 중복이 크다고 판단하면
+lesson_note 노드로 한 번 더 되돌려 재생성합니다.
 
 체크포인터:
   - psycopg3 AsyncConnectionPool 을 사용한 비동기 연결 풀
@@ -25,8 +25,9 @@ from app.graph.nodes.stt_agent import stt_node
 from app.graph.nodes.correction_agent import correction_node
 from app.graph.nodes.lesson_note_agent import (
     feedback_analysis_node,
-    category_classification_node,
     generate_lesson_note_node,
+    review_lesson_note_node,
+    route_after_review,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,15 +45,22 @@ def _build_graph() -> StateGraph:
     builder.add_node("stt", stt_node)               # 1. STT
     builder.add_node("correction", correction_node) # 2. 텍스트 보정
     builder.add_node("feedback_analysis", feedback_analysis_node) # 3. 피드백 심층 분석
-    builder.add_node("category_classification", category_classification_node) # 4. 피드백 카테고리화
-    builder.add_node("lesson_note", generate_lesson_note_node) # 5. 레슨노트 생성
+    builder.add_node("lesson_note", generate_lesson_note_node) # 4. 레슨노트 생성
+    builder.add_node("review_lesson_note", review_lesson_note_node) # 5. 중복 검토
 
     builder.set_entry_point("stt")
     builder.add_edge("stt", "correction")
     builder.add_edge("correction", "feedback_analysis")
-    builder.add_edge("feedback_analysis", "category_classification")
-    builder.add_edge("category_classification", "lesson_note")
-    builder.add_edge("lesson_note", END)
+    builder.add_edge("feedback_analysis", "lesson_note")
+    builder.add_edge("lesson_note", "review_lesson_note")
+    builder.add_conditional_edges(
+        "review_lesson_note",
+        route_after_review,
+        {
+            "regenerate": "lesson_note",
+            "end": END,
+        },
+    )
 
     return builder
 

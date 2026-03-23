@@ -15,10 +15,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.SocketTimeoutException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,15 @@ public class LessonNoteProcessingService {
     @Value("${app.ai.base-url}")
     private String aiBaseUrl;
 
+    @Value("${app.ai.connect-timeout-ms:5000}")
+    private int aiConnectTimeoutMs;
+
+    @Value("${app.ai.read-timeout-ms:1800000}")
+    private int aiReadTimeoutMs;
+
+    @Value("${app.ai.max-attempts:2}")
+    private int aiMaxAttempts;
+
     public void process(Long noteId) {
         try {
             AiJobPayload payload = transactionTemplate.execute(status -> {
@@ -58,7 +69,7 @@ public class LessonNoteProcessingService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "노트를 찾을 수 없습니다.");
             }
 
-            LessonNoteGenerateResponse response = requestLessonNote(payload);
+            LessonNoteGenerateResponse response = requestLessonNoteWithRetry(payload);
 
             if (response == null || response.lessonNote() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 응답이 비어 있습니다.");
@@ -69,6 +80,34 @@ public class LessonNoteProcessingService {
             log.error("Lesson note AI processing failed. noteId={}", noteId, exception);
             transactionTemplate.executeWithoutResult(status -> markFailed(noteId));
         }
+    }
+
+    private LessonNoteGenerateResponse requestLessonNoteWithRetry(AiJobPayload payload) {
+        RuntimeException lastException = null;
+
+        for (int attempt = 1; attempt <= aiMaxAttempts; attempt++) {
+            try {
+                log.info("Requesting lesson note from AI server. noteId={} attempt={}/{}", payload.noteId(), attempt, aiMaxAttempts);
+                return requestLessonNote(payload);
+            } catch (ResourceAccessException exception) {
+                lastException = exception;
+                if (!isTimeoutException(exception) || attempt == aiMaxAttempts) {
+                    throw exception;
+                }
+
+                log.warn(
+                        "Transient AI timeout detected. noteId={} attempt={}/{} message={}",
+                        payload.noteId(),
+                        attempt,
+                        aiMaxAttempts,
+                        exception.getMessage()
+                );
+            }
+        }
+
+        throw lastException != null
+                ? lastException
+                : new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 응답 요청에 실패했습니다.");
     }
 
     private LessonNoteGenerateResponse requestLessonNote(AiJobPayload payload) {
@@ -84,8 +123,8 @@ public class LessonNoteProcessingService {
 
         try {
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-            requestFactory.setConnectTimeout(5000);
-            requestFactory.setReadTimeout(300000);
+            requestFactory.setConnectTimeout(aiConnectTimeoutMs);
+            requestFactory.setReadTimeout(aiReadTimeoutMs);
 
             return RestClient.builder()
                     .baseUrl(aiBaseUrl)
@@ -106,6 +145,17 @@ public class LessonNoteProcessingService {
             );
             throw exception;
         }
+    }
+
+    private boolean isTimeoutException(ResourceAccessException exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof SocketTimeoutException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     private void applyResponse(Long noteId, LessonNoteBody lessonNote) {

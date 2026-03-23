@@ -9,14 +9,7 @@ class AnalyzedFeedback(BaseModel):
     teacher_quote: str = Field(description="선생님 피드백 원문")
     related_lyrics: Optional[str] = Field(description="관련된 가사 (있을 경우)")
     feedback_analysis: str = Field(description="선생님 피드백 내용 문맥 기반 분석 (50자 이내)")
-
-
-class FeedbackCategory(BaseModel):
-    """category_classification_node 출력 단위"""
-    category_name: str = Field(description="카테고리 명")
-    category_analysis: str = Field(description="카테고리 심층 분석 내용 (100자 내외)")
-    feedbacks: List[AnalyzedFeedback] = Field(description="해당 카테고리에 속하는 피드백 목록")
-
+    tags: List[str] = Field(default_factory=list, description="해당 피드백에 부여된 태그 목록")
 
 # ── 2. 최종 레슨 노트 형태 ──────────────────────────────────────────
 
@@ -60,8 +53,8 @@ class AgentState(TypedDict):
 
     # 5단계 파이프라인 매개 상태
     analyzed_feedbacks: List[AnalyzedFeedback]
-    feedback_categories: List[FeedbackCategory]
-
     lesson_note: Optional[LessonNoteResponse]   # 최종 결과물
+    needs_regeneration: bool
+    review_feedback: Optional[str]
     errors: List[str]
     retry_count: int

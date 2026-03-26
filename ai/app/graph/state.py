@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 
 class AnalyzedFeedback(BaseModel):
     """feedback_analysis_node 출력 단위"""
-    teacher_quote: str = Field(description="선생님 피드백 원문")
+    teacher_context: str = Field(
+        description="하나의 피드백과 직접 연결된 선생님 발화 여러 개를 순서대로 묶은 원문",
+    )
     related_lyrics: Optional[str] = Field(description="관련된 가사 (있을 경우)")
     feedback_analysis: str = Field(description="선생님 피드백 내용 문맥 기반 분석 (50자 이내)")
     tags: List[str] = Field(default_factory=list, description="해당 피드백에 부여된 태그 목록")

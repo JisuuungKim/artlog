@@ -8,6 +8,7 @@ lesson_note_agent.py  —  Feedback Analysis and Lesson Note Pipeline
 """
 
 import logging
+import os
 from typing import Any, List
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -19,85 +20,52 @@ from app.graph.state import (
     AnalyzedFeedback,
     LessonNoteResponse,
 )
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-_llm = ChatOpenAI(model="gpt-4o", temperature=0)
+_llm = None
 LYRICS_TAG = "특정 가사 피드백"
 PRACTICE_TAG = "직접적인 연습 방법"
 ASSIGNMENT_TAG = "다음 레슨 과제"
 MAX_REGEN_ATTEMPTS = 2
 
 
-def _normalize_tags(tags: List[str]) -> List[str]:
-    normalized: List[str] = []
-    seen = set()
-
-    for tag in tags:
-        value = (tag or "").strip()
-        if not value or value in seen:
-            continue
-        seen.add(value)
-        normalized.append(value)
-
-    return normalized
-
-
-def _allowed_keyword_tags(state: AgentState) -> List[str]:
-    return [
-        kw["feedback_keyword_name"] if isinstance(kw, dict) else kw.feedback_keyword_name
-        for kw in state.get("keywords", [])
-    ]
+def _get_llm() -> ChatOpenAI:
+    global _llm
+    if _llm is None:
+        settings = get_settings()
+        if settings.openai_api_key:
+            os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
+        _llm = ChatOpenAI(model="gpt-5.4-mini", temperature=0)
+    return _llm
 
 # =====================================================================
 # 1. feedback_analysis_node (피드백 기초 분석)
 # =====================================================================
 
 ANALYSIS_SYSTEM_PROMPT = """\
-너는 이 레슨의 유일한 기록자이며, 선생님의 모든 감각적 지시를 추론해서 학생이 내일 당장 연습할 수 있는 '몸의 언어'로 번역해야만 해
+너는 이 레슨의 유일한 기록자이며, 선생님의 모든 감각적 지시를 파악해서 학생이 내일 당장 연습할 수 있는 '몸의 언어'로 번역해야만 해
 
 [임무]
-[작업 순서]
-1. 먼저 전체 대화록(transcript)에서 선생님의 피드백을 최대한 많이, 빠짐없이 추출해.
-2. 그 다음 각 피드백이 아래 어떤 조건에 해당하는지 판별해서 tags를 붙여.
-3. 한 피드백은 여러 조건에 동시에 해당할 수 있다.
-
-[태그 판별 조건]
-1. 제공된 [사용 가능한 키워드 태그]와 관련된 피드백
-2. 특정 가사/단어/구절에 대한 피드백
-3. 선생님이 말한 직접적인 연습 방법 설명
-4. 다음 레슨 전까지 꼭 해야 한다고 말한 과제성 피드백
-
-중요:
-- 위 4개 조건은 "피드백을 찾는 필터"이면서 동시에 "태그를 붙이는 기준"이다.
-- 각 피드백은 4개 조건 중 해당하는 것만 태그로 붙여라.
-- 어떤 피드백은 keyword 태그만 있을 수 있고, 어떤 피드백은 "특정 가사 피드백"+"직접적인 연습 방법"처럼 여러 태그를 함께 가질 수 있다.
-- 조건에 하나도 해당하지 않는 일반 대화, 추임새, 반복 호응은 제외해.
+전체 대화록(transcript)을 꼼꼼히 읽으면서 선생님 피드백이 나올 경우,
+해당 텍스트 내용의 앞 뒤 5분의 문맥을 파악해서 선생님의 피드백을 분석해서 선생님의 의도를 파악해줘.
+선생님의 피드백과 추론, 분석 내용은 10개 내외로 작성해. 노래와 관련된 피드백이 없을 경우 예외로 10개 이하여도 가능해.
+** 노래와 관련된 피드백만 파악해줘 **
 
 [출력 단위 (AnalyzedFeedback)]
-각 피드백 포인트마다 아래 4가지를 추출/작성해:
-1. teacher_quote: 선생님이 실제로 내뱉은 **날것 그대로의 발언(따옴표로 묶어도 됨)**을 추출하라. 절대 요약하거나 일반적인 말로 바꾸지 마라.
+각 피드백 포인트마다 아래 3가지를 추출/작성해:
+1. teacher_context: 선생님이 해당 피드백을 설명하거나 교정하는 과정에서 실제로 한 발화 2~4개를 순서대로 묶어서 적어라. 한 문장만 자르지 말고, 이해에 필요한 앞뒤 발화도 함께 포함해라. 절대 요약하거나 일반적인 말로 바꾸지 마라.
 2. related_lyrics: 관련된 가사가 있다면 기재, 없으면 빈 문자열
-3. feedback_analysis: 선생님이 지적한 **구체적인 원인과 구체적인 해결책**을 맥락을 바탕으로 추론한 후 100자 내외로 작성한다.
-4. tags: 아래 규칙에 맞는 태그를 1개 이상 부여한다.
-
-[tags 규칙]
-- 키워드 관련이면 반드시 [사용 가능한 키워드 태그] 중 정확한 이름을 태그로 넣어라.
-- 특정 가사/단어/구절을 직접 교정하면 "{lyrics_tag}" 태그를 넣어라.
-- 구체적인 연습 동작/연습 루틴/호흡법/발성법을 설명하면 "{practice_tag}" 태그를 넣어라.
-- 다음 레슨 전까지 꼭 해야 한다고 강조하거나 숙제로 주면 "{assignment_tag}" 태그를 넣어라.
-- 한 피드백에 여러 태그를 붙일 수 있다.
-- tags가 비어 있는 피드백은 절대 만들지 마라.
-- tags는 "해당 피드백이 실제로 만족하는 조건"만 반영해라. 억지로 4종류를 다 맞출 필요는 없다.
+3. feedback_analysis: 선생님이 지적한 **구체적인 원인과 구체적인 해결책**을 이해하기 쉽게 100자 내외로 작성한다.
 
 [feedback_analysis 작성 규칙]
 feedback_analysis 추론 과정을 꼭 따라가면서 심층적으로 분석해라
 1) 선생님이 어떤 단어나 구간에서 학생을 멈췄는가?
-2) 선생님이 지적을 한 목적은 무엇인가? 보컬 트레이너 관점에서 구체적으로 추론할 것
-3) **'감각적인 행동 지침'**으로 변환하라.
+2) 선생님이 지적을 한 목적은 무엇인가? 앞뒤 약 5분의 문맥을 보고 선생님의 의도를 파악하라.
+** feedback_analysis의 예시: 숨을 크게 쉬고 시작하면서 흐름이 끊기고, 소리가 뜨는 원인이 됨. 말하듯 자연스럽게 시작하는 감각이 필요함 **
 
-
-주의: 절대로 발화를 뭉뚱그리거나 날조하지 말고, 대화록에 있는 선생님의 실제 피드백 지점들을 놓치지 말고 최대한 많이 포착해.
+주의: 절대로 발화를 뭉뚱그리거나 날조하지 말고 실제 피드백을 포착해.
 """
 
 class _FeedbackAnalysisOutput(BaseModel):
@@ -105,34 +73,22 @@ class _FeedbackAnalysisOutput(BaseModel):
 
 def feedback_analysis_node(state: AgentState) -> dict[str, Any]:
     transcripts = state.get("transcripts", [])
-    keyword_tags = _allowed_keyword_tags(state)
     logger.info("[feedback_analysis_node] 2분 문맥 기반 피드백 통합 분석 시작 (총 %d청크)...", len(transcripts))
     
     if not transcripts:
         return {"analyzed_feedbacks": []}
         
-    structured_llm = _llm.with_structured_output(_FeedbackAnalysisOutput)
+    structured_llm = _get_llm().with_structured_output(_FeedbackAnalysisOutput)
     all_feedbacks = []
 
     for idx, chunk in enumerate(transcripts):
         logger.info("[feedback_analysis_node] 청크 %d/%d 분석 중...", idx + 1, len(transcripts))
         try:
             result = structured_llm.invoke([
-                SystemMessage(content=ANALYSIS_SYSTEM_PROMPT.format(
-                    lyrics_tag=LYRICS_TAG,
-                    practice_tag=PRACTICE_TAG,
-                    assignment_tag=ASSIGNMENT_TAG,
-                )),
-                HumanMessage(content=(
-                    f"[사용 가능한 키워드 태그]\n{', '.join(keyword_tags) or '(없음)'}\n\n"
-                    f"[대화록 전문 (청크 {idx + 1})]\n{chunk}"
-                ))
+                SystemMessage(content=ANALYSIS_SYSTEM_PROMPT),
+                HumanMessage(content=f"[대화록 전문 (청크 {idx + 1})]\n{chunk}")
             ])
-            feedbacks = [
-                feedback.model_copy(update={"tags": _normalize_tags(list(feedback.tags))})
-                for feedback in result.analyzed_feedbacks
-                if feedback.tags
-            ]
+            feedbacks = result.analyzed_feedbacks
             all_feedbacks.extend(feedbacks)
             logger.info("[feedback_analysis_node] 청크 %d 분석 완료: %d개 발견", idx + 1, len(feedbacks))
         except Exception as e:
@@ -172,7 +128,7 @@ REPORT_SYSTEM_PROMPT = """\
   - key_feedback: 핵심 문제 인식
   - practice_guide: 실제 연습 동작과 루틴
   - next_assignment: 다음 레슨 전까지 수행할 과제
-- 같은 teacher_quote를 여러 섹션에서 재활용하지 마라.
+- 같은 teacher_context를 여러 섹션에서 재활용하지 마라.
 
 1. key_feedback (3~5개):
   - 선생님이 핵심적으로 짚은 교정 포인트.
@@ -216,7 +172,7 @@ def generate_lesson_note_node(state: AgentState) -> dict[str, Any]:
     feedbacks_text = "\n".join(
         (
             f"- 태그: {', '.join(fb.tags)} | 가사: {fb.related_lyrics or '(없음)'} | "
-            f"선생님: {fb.teacher_quote} | 분석: {fb.feedback_analysis}"
+            f"선생님 발화 묶음: {fb.teacher_context} | 분석: {fb.feedback_analysis}"
         )
         for fb in analyzed_feedbacks
     ) or "(추출된 피드백 없음)"
@@ -230,7 +186,7 @@ def generate_lesson_note_node(state: AgentState) -> dict[str, Any]:
         else ""
     )
 
-    structured_llm = _llm.with_structured_output(LessonNoteResponse)
+    structured_llm = _get_llm().with_structured_output(LessonNoteResponse)
     try:
         lesson_note: LessonNoteResponse = structured_llm.invoke([
             SystemMessage(content=REPORT_SYSTEM_PROMPT.format(
@@ -309,9 +265,9 @@ def review_lesson_note_node(state: AgentState) -> dict[str, Any]:
             "review_feedback": "lesson_note가 비어 있어 검토를 건너뜀",
         }
 
-    structured_llm = _llm.with_structured_output(_LessonNoteReviewOutput)
+    structured_llm = _get_llm().with_structured_output(_LessonNoteReviewOutput)
     feedbacks_text = "\n".join(
-        f"- 태그: {', '.join(fb.tags)} | 가사: {fb.related_lyrics or '(없음)'} | 선생님: {fb.teacher_quote} | 분석: {fb.feedback_analysis}"
+        f"- 태그: {', '.join(fb.tags)} | 가사: {fb.related_lyrics or '(없음)'} | 선생님 발화 묶음: {fb.teacher_context} | 분석: {fb.feedback_analysis}"
         for fb in analyzed_feedbacks
     ) or "(분석된 피드백 없음)"
 

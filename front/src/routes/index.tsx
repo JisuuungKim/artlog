@@ -4,6 +4,7 @@ import { authRoutes } from './auth';
 import { onboardingRoutes } from './onboarding';
 import { mypageRoutes } from './mypage';
 import { notificationRoutes } from './notification';
+import { searchRoutes } from './search';
 
 export const allRoutes = [
   ...lessonRoutes,
@@ -12,4 +13,5 @@ export const allRoutes = [
   ...onboardingRoutes,
   ...mypageRoutes,
   ...notificationRoutes,
+  ...searchRoutes,
 ];

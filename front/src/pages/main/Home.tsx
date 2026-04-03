@@ -82,6 +82,7 @@ export default function Home() {
         variant="category-right-icons"
         title={selectedCategoryName}
         onCategoryChevronClick={handleCategoryBottomSheetOpen}
+        onNotificationClick={() => navigate('/notification')}
       />
       <div className="pt-9 pb-18 px-5">
         <p className="text-h2 mb-4 text-greyscale-text-title-900">최근 노트</p>

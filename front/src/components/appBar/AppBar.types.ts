@@ -22,6 +22,7 @@ export interface AppBarProps {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   rightSecondaryIcon?: ReactNode;
+  onNotificationClick?: () => void;
   searchValue?: string;
   searchPlaceholder?: string;
   hasNewNotifications?: boolean;

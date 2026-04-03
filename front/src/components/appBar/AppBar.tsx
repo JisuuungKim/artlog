@@ -82,6 +82,7 @@ export default function AppBar({
   leftIcon,
   rightIcon,
   rightSecondaryIcon,
+  onNotificationClick,
   searchValue,
   searchPlaceholder,
   hasNewNotifications = false,
@@ -100,11 +101,18 @@ export default function AppBar({
           {rightSecondaryIcon || (
             <CalendarGreyscale800Icon className="h-6 w-6" />
           )}
-          {hasNewNotifications ? (
-            <BellNewGreyscale800Icon className="h-6 w-6" />
-          ) : (
-            <BellGreyscale800Icon className="h-6 w-6" />
-          )}
+          <button
+            type="button"
+            onClick={onNotificationClick}
+            className="flex h-6 w-6 items-center justify-center"
+            aria-label="알림"
+          >
+            {hasNewNotifications ? (
+              <BellNewGreyscale800Icon className="h-6 w-6" />
+            ) : (
+              <BellGreyscale800Icon className="h-6 w-6" />
+            )}
+          </button>
         </div>
       </div>
     );

@@ -58,23 +58,43 @@ public class NoteService {
     private String uploadDir;
 
     /** 특정 폴더의 노트 목록 조회 (type: ALL → null, LESSON, PRACTICE) */
-    public List<NoteSummary> getNotesByFolder(Long userId, Long folderId, String type) {
-        getFolderAndVerifyOwner(userId, folderId);
+    public List<NoteSummary> getNotesByFolder(User user, Long folderId, String type) {
+        getFolderAndVerifyOwner(user, folderId);
 
         NoteType noteType = resolveNoteType(type);
-        return noteRepository.findByFolderAndType(folderId, userId, noteType)
+        return noteRepository.findByFolderAndType(folderId, user.getId(), noteType)
                 .stream()
                 .map(NoteSummary::from)
                 .toList();
     }
 
-    public List<NoteSummary> getRecentLessonNotes(Long userId, Long categoryId) {
-        return noteRepository.findRecentByUserIdAndCategoryIdAndType(
-                        userId,
-                        categoryId,
-                        NoteType.LESSON,
-                        PageRequest.of(0, 10)
-                ).stream()
+    public List<NoteSummary> getRecentLessonNotes(User user, Long categoryId) {
+        List<Note> notes;
+
+        if (categoryId == null) {
+            List<Long> categoryIds = categoryFolderPolicyService.getUserInterestCategoryIds(user);
+            if (categoryIds.isEmpty()) {
+                return List.of();
+            }
+            notes = noteRepository.findRecentByUserIdAndCategoryIdsAndType(
+                    user.getId(),
+                    categoryIds,
+                    NoteType.LESSON,
+                    PageRequest.of(0, 10)
+            );
+        } else {
+            Long resolvedCategoryId = categoryFolderPolicyService
+                    .resolveUserInterestCategory(user, categoryId)
+                    .getId();
+            notes = noteRepository.findRecentByUserIdAndCategoryIdAndType(
+                    user.getId(),
+                    resolvedCategoryId,
+                    NoteType.LESSON,
+                    PageRequest.of(0, 10)
+            );
+        }
+
+        return notes.stream()
                 .map(NoteSummary::from)
                 .toList();
     }
@@ -99,7 +119,7 @@ public class NoteService {
     ) {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
-        Category category = categoryFolderPolicyService.resolveCategory(req.categoryId());
+        Category category = categoryFolderPolicyService.resolveUserInterestCategory(user, req.categoryId());
 
         Note note = Note.builder()
                 .user(user)
@@ -122,14 +142,14 @@ public class NoteService {
         return CreatedLessonNote.from(saved);
     }
 
-    public NoteDetail getNoteDetail(Long userId, Long noteId) {
-        Note note = getNoteAndVerifyOwner(userId, noteId);
+    public NoteDetail getNoteDetail(User user, Long noteId) {
+        Note note = getNoteAndVerifyOwner(user, noteId);
         return NoteDetail.from(note);
     }
 
     @Transactional
-    public void retryLessonNoteProcessing(Long userId, Long noteId) {
-        Note note = getNoteAndVerifyOwner(userId, noteId);
+    public void retryLessonNoteProcessing(User user, Long noteId) {
+        Note note = getNoteAndVerifyOwner(user, noteId);
         if (note.getNoteType() != NoteType.LESSON) {
             throw ArtlogException.badRequest("레슨 노트만 재처리할 수 있습니다.");
         }
@@ -143,52 +163,68 @@ public class NoteService {
 
     /** 노트 삭제 */
     @Transactional
-    public void deleteNote(Long userId, Long noteId) {
-        Note note = getNoteAndVerifyOwner(userId, noteId);
+    public void deleteNote(User user, Long noteId) {
+        Note note = getNoteAndVerifyOwner(user, noteId);
         noteRepository.delete(note);
     }
 
     /** 노트 제목 변경 */
     @Transactional
-    public NoteSummary renameNote(Long userId, Long noteId, RenameNoteRequest req) {
-        Note note = getNoteAndVerifyOwner(userId, noteId);
+    public NoteSummary renameNote(User user, Long noteId, RenameNoteRequest req) {
+        Note note = getNoteAndVerifyOwner(user, noteId);
         note.rename(req.title());
         return NoteSummary.from(note);
     }
 
     /** 노트 폴더 변경 */
     @Transactional
-    public NoteSummary moveNote(Long userId, Long noteId, MoveNoteRequest req) {
-        Note note = getNoteAndVerifyOwner(userId, noteId);
-        Folder targetFolder = getFolderAndVerifyOwner(userId, req.folderId());
+    public NoteSummary moveNote(User user, Long noteId, MoveNoteRequest req) {
+        Note note = getNoteAndVerifyOwner(user, noteId);
+        Folder targetFolder = getFolderAndVerifyOwner(user, req.folderId());
         note.moveToFolder(targetFolder);
         return NoteSummary.from(note);
     }
 
     /** 선택 노트 폴더 일괄 변경 */
     @Transactional
-    public void bulkMoveNotes(Long userId, BulkMoveRequest req) {
-        Folder targetFolder = getFolderAndVerifyOwner(userId, req.folderId());
-        noteRepository.findByIdInAndUserId(req.noteIds(), userId)
+    public void bulkMoveNotes(User user, BulkMoveRequest req) {
+        Folder targetFolder = getFolderAndVerifyOwner(user, req.folderId());
+        noteRepository.findByIdInAndUserId(req.noteIds(), user.getId())
+                .stream()
+                .peek(note -> validateNoteCategoryAccess(user, note))
                 .forEach(note -> note.moveToFolder(targetFolder));
     }
 
     /** 선택 노트 일괄 삭제 */
     @Transactional
-    public void bulkDeleteNotes(Long userId, BulkDeleteRequest req) {
-        noteRepository.bulkDeleteNotes(req.noteIds(), userId);
+    public void bulkDeleteNotes(User user, BulkDeleteRequest req) {
+        noteRepository.findByIdInAndUserId(req.noteIds(), user.getId())
+                .forEach(note -> validateNoteCategoryAccess(user, note));
+        noteRepository.bulkDeleteNotes(req.noteIds(), user.getId());
     }
 
     // --- 내부 헬퍼 ---
 
-    private Note getNoteAndVerifyOwner(Long userId, Long noteId) {
-        return noteRepository.findByIdAndUserId(noteId, userId)
+    private Note getNoteAndVerifyOwner(User user, Long noteId) {
+        Note note = noteRepository.findByIdAndUserId(noteId, user.getId())
                 .orElseThrow(() -> ArtlogException.notFound("노트를 찾을 수 없거나 접근 권한이 없습니다."));
+        validateNoteCategoryAccess(user, note);
+        return note;
     }
 
-    private Folder getFolderAndVerifyOwner(Long userId, Long folderId) {
-        return folderRepository.findByIdAndUser_Id(folderId, userId)
+    private Folder getFolderAndVerifyOwner(User user, Long folderId) {
+        Folder folder = folderRepository.findByIdAndUser_Id(folderId, user.getId())
                 .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없거나 접근 권한이 없습니다."));
+        categoryFolderPolicyService.validateUserInterestCategory(user, folder.getCategory());
+        return folder;
+    }
+
+    private void validateNoteCategoryAccess(User user, Note note) {
+        Folder folder = note.getFolder();
+        if (folder == null) {
+            throw ArtlogException.notFound("관심 카테고리에서만 접근할 수 있습니다.");
+        }
+        categoryFolderPolicyService.validateUserInterestCategory(user, folder.getCategory());
     }
 
     private void attachSongs(Note note, User user, Category category, List<String> songTitles) {

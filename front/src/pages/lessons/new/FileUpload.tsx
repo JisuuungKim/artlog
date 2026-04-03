@@ -3,14 +3,17 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '@/components/button/Button';
 import Chip from '@/components/common/Chip';
 import Checkbox from '@/components/checkbox';
-import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
+import {
+  AddDirectlyContent,
+  BottomSheet,
+  SheetSelector,
+} from '@/components/bottomSheet';
 import { useTextInput } from '@/components/textInput';
 import {
   ArrowRightGreyscale500Icon,
   PlusGreyscale500Icon,
 } from '@/assets/icons';
 import SongSelector from '@/pages/lessons/new/components/SongSelector';
-import TextInput from '@/components/textInput';
 import InputButton from '@/components/common/InputButton';
 import DialogModal from '@/components/modal/DialogModal';
 import { useCreateLessonNote } from '@/hooks/useLessonNote';
@@ -67,7 +70,7 @@ export default function FileUpload() {
   const selectedCategoryName =
     categoriesData.find(
       category => String(category.id) === effectiveSelectedCategoryId
-    )?.name ?? '보컬';
+    )?.name ?? '관심 카테고리 없음';
   const selectedFolderName =
     foldersData.find(folder => String(folder.id) === effectiveSelectedFolderId)
       ?.name ?? '모든노트';
@@ -301,29 +304,19 @@ export default function FileUpload() {
       );
     } else if (bottomSheetTitle === '곡 직접 추가') {
       return (
-        // 곡 직접 추가 content
-        <div className="flex w-full gap-2">
-          <TextInput
-            isTyping={songInput.isTyping}
-            isFocused={songInput.isFocused}
-            variant="full"
-            value={songInput.value}
-            onChange={songInput.onChange}
-            onFocus={songInput.onFocus}
-            onBlur={songInput.onBlur}
-            onClear={songInput.onClear}
-            placeholder="곡 이름을 입력해주세요"
-            maxLength={28}
-          />
-          <Button
-            hierarchy="primary"
-            size="medium"
-            disabled={songInput.value.trim() === ''}
-            onClick={handleBackFromAddSong}
-          >
-            추가
-          </Button>
-        </div>
+        <AddDirectlyContent
+          inputProps={{
+            isTyping: songInput.isTyping,
+            isFocused: songInput.isFocused,
+            value: songInput.value,
+            onChange: songInput.onChange,
+            onFocus: songInput.onFocus,
+            onBlur: songInput.onBlur,
+            onClear: songInput.onClear,
+          }}
+          onAdd={handleBackFromAddSong}
+          placeholder="곡 이름을 입력해주세요"
+        />
       );
     }
   };

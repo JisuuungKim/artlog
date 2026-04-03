@@ -13,6 +13,8 @@ import LessonNoteCard from '@/components/lessonNoteCard';
 import { DialogModal, InputModal } from '@/components/modal';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import NoteSelectionBottomBar from './components/NoteSelectionBottomBar';
+import NoteSelectionHeader from './components/NoteSelectionHeader';
 import {
   useDeleteFolder,
   useFolderNotes,
@@ -45,6 +47,8 @@ export default function NoteList() {
   const [selectedEntityName, setSelectedEntityName] = useState('');
   const [selectedEntityFolderId, setSelectedEntityFolderId] = useState('');
   const [deleteNoteModalOpen, setDeleteNoteModalOpen] = useState(false);
+  const [noteSelectionMode, setNoteSelectionMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [bottomSheetType, setBottomSheetType] = useState<NoteType>(
     isNoteType(type) ? type : 'folder'
   );
@@ -59,12 +63,17 @@ export default function NoteList() {
       : folders.find(folder => String(folder.id) === id)?.name ?? '폴더';
   const notes = type === 'music' ? songWithNotes?.notes ?? [] : folderNotes;
   const currentFolderCategoryId =
-    folders.find(folder => String(folder.id) === selectedEntityFolderId)?.categoryId ??
+    folders.find(folder => String(folder.id) === (noteSelectionMode ? id : selectedEntityFolderId))
+      ?.categoryId ??
     null;
   const folderMoveOptions =
     currentFolderCategoryId == null
       ? folders
-      : folders.filter(folder => folder.categoryId === currentFolderCategoryId);
+      : folders.filter(
+          folder =>
+            folder.categoryId === currentFolderCategoryId &&
+            String(folder.id) !== (noteSelectionMode ? id : selectedEntityFolderId)
+        );
   const renameFolder = useRenameFolder();
   const deleteFolder = useDeleteFolder();
   const renameSong = useRenameSong();
@@ -93,6 +102,28 @@ export default function NoteList() {
 
   const handleChoiceNoteOpen = () => {
     setEtcMenuOpen(false);
+    setSelectedNoteIds([]);
+    setNoteSelectionMode(true);
+  };
+
+  const handleSelectionModeClose = () => {
+    setSelectedNoteIds([]);
+    setNoteSelectionMode(false);
+  };
+
+  const handleNoteSelectionChange = (noteId: string, selected: boolean) => {
+    setSelectedNoteIds(prev =>
+      selected ? [...prev, noteId] : prev.filter(id => id !== noteId)
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedNoteIds.length > 0) {
+      setSelectedNoteIds([]);
+      return;
+    }
+
+    setSelectedNoteIds(notes.map(note => String(note.id)));
   };
 
   const handleDeleteNoteOpen = () => {
@@ -102,7 +133,7 @@ export default function NoteList() {
 
   const handleMoveNoteOpen = () => {
     setEtcMenuOpen(false);
-    setSelectedFolderId(selectedEntityFolderId);
+    setSelectedFolderId(noteSelectionMode ? '' : selectedEntityFolderId);
     setMoveNoteModalOpen(true);
   };
 
@@ -124,7 +155,21 @@ export default function NoteList() {
     setChangeNameModalOpen(false);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
+    if (noteSelectionMode) {
+      if (selectedNoteIds.length === 0) {
+        setDeleteNoteModalOpen(false);
+        return;
+      }
+
+      await Promise.all(
+        selectedNoteIds.map(noteId => deleteLessonNote.mutateAsync(Number(noteId)))
+      );
+      setDeleteNoteModalOpen(false);
+      handleSelectionModeClose();
+      return;
+    }
+
     if (!selectedEntityId) {
       setDeleteNoteModalOpen(false);
       return;
@@ -145,13 +190,32 @@ export default function NoteList() {
     setDeleteNoteModalOpen(false);
   };
 
-  const handleMoveNoteConfirm = () => {
+  const handleMoveNoteConfirm = async () => {
+    if (noteSelectionMode) {
+      if (!selectedFolderId || selectedNoteIds.length === 0) {
+        setMoveNoteModalOpen(false);
+        return;
+      }
+
+      await Promise.all(
+        selectedNoteIds.map(noteId =>
+          moveLessonNote.mutateAsync({
+            noteId: Number(noteId),
+            folderId: Number(selectedFolderId),
+          })
+        )
+      );
+      setMoveNoteModalOpen(false);
+      handleSelectionModeClose();
+      return;
+    }
+
     if (!selectedEntityId || !selectedFolderId) {
       setMoveNoteModalOpen(false);
       return;
     }
 
-    moveLessonNote.mutate({
+    await moveLessonNote.mutateAsync({
       noteId: Number(selectedEntityId),
       folderId: Number(selectedFolderId),
     });
@@ -225,60 +289,109 @@ export default function NoteList() {
     },
   };
 
+  const selectionCount = selectedNoteIds.length;
+  const selectionDeleteContent = {
+    title: `${selectionCount}개의 노트를 삭제하시겠어요?`,
+    content: '한 번 삭제한 레슨 노트는 복구할 수 없어요.',
+  };
+
   return (
     <div>
-      <AppBar
-        variant="icons-left-right-single"
-        leftIcon={<BackGreyscale800Icon onClick={() => navigate(-1)} />}
-        rightIcon={
-          <EtcGreyscale800Icon
-            onClick={() =>
-              handleEtcClick(
-                id ?? '',
-                isNoteType(type) ? type : 'folder',
-                title
-              )
+      {noteSelectionMode ? (
+        <>
+          <div className="min-h-screen bg-greyscale-bg-100 pb-[74px] pt-[10px]">
+            <NoteSelectionHeader
+              folderName={title}
+              selectedCount={selectionCount}
+              onClose={handleSelectionModeClose}
+              onToggleSelectAll={handleToggleSelectAll}
+            />
+            <div className="space-y-2 px-5">
+              {notes.map(note => (
+                <LessonNoteCard
+                  key={note.id}
+                  title={note.title}
+                  createdAt={new Date(note.createdAt).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                  folderName={note.folderName ?? '모든 노트'}
+                  songTitles={note.songTitles}
+                  editMode
+                  selected={selectedNoteIds.includes(String(note.id))}
+                  onSelectionChange={selected =>
+                    handleNoteSelectionChange(String(note.id), selected)
+                  }
+                  showEtcButton={false}
+                />
+              ))}
+            </div>
+          </div>
+          <NoteSelectionBottomBar
+            disabled={selectionCount === 0}
+            onMove={handleMoveNoteOpen}
+            onDelete={handleDeleteNoteOpen}
+          />
+        </>
+      ) : (
+        <>
+          <AppBar
+            variant="icons-left-right-single"
+            leftIcon={<BackGreyscale800Icon onClick={() => navigate(-1)} />}
+            rightIcon={
+              <EtcGreyscale800Icon
+                onClick={() =>
+                  handleEtcClick(
+                    id ?? '',
+                    isNoteType(type) ? type : 'folder',
+                    title
+                  )
+                }
+              />
             }
           />
-        }
-      />
-      <div className="p-5">
-        <div className="flex items-center gap-1 mb-4">
-          {type === 'folder' ? (
-            <FolderGreyscale800Icon className="h-6 w-6" />
-          ) : (
-            <MusicGreyscale800Icon className="h-6 w-6" />
-          )}
-          <span className="text-greyscale-text-title-900 text-h2">
-            {title}
-          </span>
-        </div>
-        <div>
-          {notes.map(note => (
-            <LessonNoteCard
-              key={note.id}
-              title={note.title}
-              createdAt={new Date(note.createdAt).toLocaleString('ko-KR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-              folderName={note.folderName ?? '모든 노트'}
-              songTitles={note.songTitles}
-              onEtcClick={() =>
-                handleEtcClick(
-                  String(note.id),
-                  'lessonNote',
-                  note.title,
-                  String(note.folderId ?? '')
-                )
-              }
-            />
-          ))}
-        </div>
-      </div>
+          <div className="p-5">
+            <div className="mb-4 flex items-center gap-1">
+              {type === 'folder' ? (
+                <FolderGreyscale800Icon className="h-6 w-6" />
+              ) : (
+                <MusicGreyscale800Icon className="h-6 w-6" />
+              )}
+              <span className="text-h2 text-greyscale-text-title-900">
+                {title}
+              </span>
+            </div>
+            <div>
+              {notes.map(note => (
+                <LessonNoteCard
+                  key={note.id}
+                  title={note.title}
+                  createdAt={new Date(note.createdAt).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                  folderName={note.folderName ?? '모든 노트'}
+                  songTitles={note.songTitles}
+                  onEtcClick={() =>
+                    handleEtcClick(
+                      String(note.id),
+                      'lessonNote',
+                      note.title,
+                      String(note.folderId ?? '')
+                    )
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ETC 바텀시트 */}
       <BottomSheet
@@ -321,8 +434,16 @@ export default function NoteList() {
         type="two-buttons"
         isOpen={deleteNoteModalOpen}
         onClose={() => setDeleteNoteModalOpen(false)}
-        title={deleteContent[bottomSheetType].title}
-        content={deleteContent[bottomSheetType].content}
+        title={
+          noteSelectionMode
+            ? selectionDeleteContent.title
+            : deleteContent[bottomSheetType].title
+        }
+        content={
+          noteSelectionMode
+            ? selectionDeleteContent.content
+            : deleteContent[bottomSheetType].content
+        }
         primaryButtonText="삭제"
         secondaryButtonText="취소"
         onPrimaryClick={handleDeleteConfirm}
@@ -342,7 +463,7 @@ export default function NoteList() {
           options={folderMoveOptions}
           selected={selectedFolderId}
           onSelect={setSelectedFolderId}
-          currentId={selectedEntityFolderId}
+          currentId={noteSelectionMode ? id : selectedEntityFolderId}
         />
       </BottomSheet>
     </div>

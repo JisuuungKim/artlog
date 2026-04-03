@@ -29,6 +29,15 @@ public interface UserSongRepository extends JpaRepository<UserSong, Long> {
             @Param("categoryId") Long categoryId
     );
 
+    @Query("SELECT us FROM UserSong us" +
+           " WHERE us.user.id = :userId" +
+           " AND us.category.id IN :categoryIds" +
+           " ORDER BY us.createdAt DESC")
+    List<UserSong> findByUserIdAndCategoryIds(
+            @Param("userId") Long userId,
+            @Param("categoryIds") List<Long> categoryIds
+    );
+
     /** 소유자 확인용 단건 조회 */
     Optional<UserSong> findByIdAndUserId(Long id, Long userId);
 

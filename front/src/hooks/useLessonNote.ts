@@ -37,6 +37,7 @@ export type LessonNoteDetail = {
   id: number;
   title: string;
   status: LessonNoteStatus;
+  categoryName: string | null;
   folderName: string | null;
   conditionText: string | null;
   recordingUrl: string | null;

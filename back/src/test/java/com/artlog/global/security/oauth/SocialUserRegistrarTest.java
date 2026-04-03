@@ -1,5 +1,6 @@
 package com.artlog.global.security.oauth;
 
+import com.artlog.domain.category.service.CategoryFolderPolicyService;
 import com.artlog.domain.user.entity.User;
 import com.artlog.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,9 @@ class SocialUserRegistrarTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private CategoryFolderPolicyService categoryFolderPolicyService;
 
     @InjectMocks
     private SocialUserRegistrar socialUserRegistrar;

@@ -51,6 +51,23 @@ export function useCategories() {
   });
 }
 
+export function useRegisterUserInterestCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ name }: { name: string }) => {
+      const response = await api.post<ApiResponse<CategorySummary>>(
+        '/api/v1/categories/interests',
+        { name }
+      );
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
 export function useFolders(categoryId?: string) {
   return useQuery({
     queryKey: ['folders', categoryId],

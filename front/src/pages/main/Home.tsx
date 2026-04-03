@@ -1,44 +1,79 @@
 import AppBar from '@/components/appBar';
-import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
+import {
+  AddDirectlyContent,
+  BottomSheet,
+  SheetSelector,
+} from '@/components/bottomSheet';
 import Chip from '@/components/common/Chip';
 import LessonNoteCard, {
   LessonNoteFailedCard,
   LessonNoteProcessingCard,
 } from '@/components/lessonNoteCard';
 import { useState } from 'react';
-import { useCategories } from '@/hooks/useNoteBrowser';
+import { useTextInput } from '@/components/textInput';
+import {
+  useCategories,
+  useRegisterUserInterestCategory,
+} from '@/hooks/useNoteBrowser';
 import { useSelectedCategory } from '@/hooks/useSelectedCategory';
 import {
   useRecentLessonNotes,
   useRetryLessonNoteProcessing,
 } from '@/hooks/useLessonNote';
+import { useNavigate } from 'react-router-dom';
+
+type CategoryBottomSheetMode = 'select' | 'create';
 
 export default function Home() {
+  const navigate = useNavigate();
   const { data: categoriesData = [] } = useCategories();
   const [isCategoryBottomSheetOpen, setIsCategoryBottomSheetOpen] =
     useState(false);
+  const [categoryBottomSheetMode, setCategoryBottomSheetMode] =
+    useState<CategoryBottomSheetMode>('select');
   const { effectiveSelectedCategoryId, setSelectedCategoryId } =
     useSelectedCategory(categoriesData);
   const { data: recentNotes = [] } = useRecentLessonNotes(
     effectiveSelectedCategoryId || undefined
   );
   const retryLessonNoteProcessing = useRetryLessonNoteProcessing();
+  const registerUserInterestCategory = useRegisterUserInterestCategory();
+  const categoryInput = useTextInput('');
   const selectedCategoryName =
     categoriesData.find(
       category => String(category.id) === effectiveSelectedCategoryId
-    )?.name ?? '보컬';
+    )?.name ?? '관심 카테고리 없음';
 
   const handleCategoryBottomSheetOpen = () => {
+    setCategoryBottomSheetMode('select');
     setIsCategoryBottomSheetOpen(true);
   };
 
   const handleCategoryBottomSheetConfirm = () => {
+    setCategoryBottomSheetMode('select');
+    categoryInput.onClear();
     setIsCategoryBottomSheetOpen(false);
   };
 
   const handleAddCategory = () => {
-    // 카테고리 추가 로직 구현
-    console.log('카테고리 추가하기');
+    setCategoryBottomSheetMode('create');
+  };
+
+  const handleAddCategorySubmit = () => {
+    const name = categoryInput.value.trim();
+    if (!name || registerUserInterestCategory.isPending) {
+      return;
+    }
+
+    registerUserInterestCategory.mutate(
+      { name },
+      {
+        onSuccess: category => {
+          setSelectedCategoryId(String(category.id));
+          handleCategoryBottomSheetConfirm();
+        },
+      }
+    );
   };
 
   return (
@@ -86,6 +121,7 @@ export default function Home() {
                 })}
                 folderName={note.folderName ?? '전체노트'}
                 songTitles={note.songTitles}
+                onClick={() => navigate(`/lessons/${note.id}`)}
               />
             );
           })}
@@ -98,16 +134,38 @@ export default function Home() {
       <BottomSheet
         isOpen={isCategoryBottomSheetOpen}
         onClose={handleCategoryBottomSheetConfirm}
-        title="카테고리"
+        title={
+          categoryBottomSheetMode === 'create'
+            ? '카테고리 직접 추가하기'
+            : '카테고리'
+        }
         buttonText="확인"
+        showButton={categoryBottomSheetMode === 'select'}
       >
-        <SheetSelector
-          options={categoriesData}
-          selected={effectiveSelectedCategoryId}
-          onSelect={setSelectedCategoryId}
-          onAddCategory={handleAddCategory}
-          addCategoryLabel="카테고리 추가하기"
-        />
+        {categoryBottomSheetMode === 'select' ? (
+          <SheetSelector
+            options={categoriesData}
+            selected={effectiveSelectedCategoryId}
+            onSelect={setSelectedCategoryId}
+            onAddCategory={handleAddCategory}
+            addCategoryLabel="카테고리 추가하기"
+          />
+        ) : (
+          <AddDirectlyContent
+            inputProps={{
+              isTyping: categoryInput.isTyping,
+              isFocused: categoryInput.isFocused,
+              value: categoryInput.value,
+              onChange: categoryInput.onChange,
+              onFocus: categoryInput.onFocus,
+              onBlur: categoryInput.onBlur,
+              onClear: categoryInput.onClear,
+            }}
+            onAdd={handleAddCategorySubmit}
+            placeholder="카테고리 이름을 입력해주세요"
+            maxLength={20}
+          />
+        )}
       </BottomSheet>
     </div>
   );

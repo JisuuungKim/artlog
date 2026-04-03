@@ -57,6 +57,7 @@ public class NoteResponse {
             Long id,
             String title,
             NoteStatus status,
+            String categoryName,
             String folderName,
             String conditionText,
             String recordingUrl,
@@ -73,6 +74,9 @@ public class NoteResponse {
                     note.getId(),
                     note.getTitle(),
                     note.getStatus(),
+                    note.getFolder() != null && note.getFolder().getCategory() != null
+                            ? note.getFolder().getCategory().getName()
+                            : null,
                     note.getFolder() != null ? note.getFolder().getName() : null,
                     note.getConditionText(),
                     note.getRecordingUrl(),

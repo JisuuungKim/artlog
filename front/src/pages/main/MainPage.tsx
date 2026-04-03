@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import Home from './Home';
 import Folder from './Folder';
-import Profile from './Profile';
+import Mypage from '../mypage/Mypage';
 
 export default function MainPage() {
   const [searchParams] = useSearchParams();
@@ -11,8 +11,8 @@ export default function MainPage() {
     switch (tab) {
       case 'notes':
         return <Folder />;
-      case 'profile':
-        return <Profile />;
+      case 'mypage':
+        return <Mypage />;
       case 'home':
       default:
         return <Home />;

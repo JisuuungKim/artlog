@@ -32,7 +32,7 @@ public class UserSongController {
             @RequestParam(required = false) Long categoryId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        List<SongSummary> songs = userSongService.getSongsByCategory(user.getId(), categoryId);
+        List<SongSummary> songs = userSongService.getSongsByCategory(user, categoryId);
         return ResponseEntity.ok(ApiResponse.ok(songs));
     }
 
@@ -46,7 +46,7 @@ public class UserSongController {
             @PathVariable Long songId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        SongWithNotes result = userSongService.getNotesBySong(user.getId(), songId);
+        SongWithNotes result = userSongService.getNotesBySong(user, songId);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -61,7 +61,7 @@ public class UserSongController {
             @Valid @RequestBody RenameSongRequest req
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        SongSummary updated = userSongService.renameSong(user.getId(), songId, req);
+        SongSummary updated = userSongService.renameSong(user, songId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
@@ -75,7 +75,7 @@ public class UserSongController {
             @PathVariable Long songId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        userSongService.deleteSong(user.getId(), songId);
+        userSongService.deleteSong(user, songId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
 }

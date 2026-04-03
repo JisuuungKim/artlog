@@ -36,7 +36,7 @@ public class FolderController {
             @RequestParam(required = false) Long categoryId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        List<FolderSummary> folders = folderService.getFolders(user.getId(), categoryId);
+        List<FolderSummary> folders = folderService.getFolders(user, categoryId);
         return ResponseEntity.ok(ApiResponse.ok(folders));
     }
 
@@ -65,7 +65,7 @@ public class FolderController {
             @Valid @RequestBody RenameFolderRequest req
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        FolderSummary updated = folderService.renameFolder(user.getId(), folderId, req);
+        FolderSummary updated = folderService.renameFolder(user, folderId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
@@ -79,7 +79,7 @@ public class FolderController {
             @PathVariable Long folderId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        folderService.deleteFolder(user.getId(), folderId);
+        folderService.deleteFolder(user, folderId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
 
@@ -94,7 +94,7 @@ public class FolderController {
             @RequestParam(defaultValue = "ALL") String type
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        List<NoteSummary> notes = noteService.getNotesByFolder(user.getId(), folderId, type);
+        List<NoteSummary> notes = noteService.getNotesByFolder(user, folderId, type);
         return ResponseEntity.ok(ApiResponse.ok(notes));
     }
 }

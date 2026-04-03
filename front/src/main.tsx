@@ -9,6 +9,8 @@ import { lessonRoutes } from './routes/lesson.tsx';
 import { noteRoutes } from './routes/note.tsx';
 import { authRoutes } from './routes/auth.tsx';
 import { onboardingRoutes } from './routes/onboarding.tsx';
+import { mypageRoutes } from './routes/mypage.tsx';
+import { notificationRoutes } from './routes/notification.tsx';
 import { queryClient } from './lib/query-client.ts';
 
 createRoot(document.getElementById('root')!).render(
@@ -40,6 +42,20 @@ createRoot(document.getElementById('root')!).render(
               />
             ))}
             {onboardingRoutes.map(route => (
+              <Route
+                key={route.path}
+                path={route.path}
+                element={route.element}
+              />
+            ))}
+            {mypageRoutes.map(route => (
+              <Route
+                key={route.path}
+                path={route.path}
+                element={route.element}
+              />
+            ))}
+            {notificationRoutes.map(route => (
               <Route
                 key={route.path}
                 path={route.path}

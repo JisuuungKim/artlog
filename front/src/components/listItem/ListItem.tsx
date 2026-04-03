@@ -4,6 +4,7 @@ export function ListItem({
   label,
   icon,
   count,
+  trailing,
   className,
   onClick,
 }: ListItemProps) {
@@ -26,8 +27,14 @@ export function ListItem({
         </p>
       </div>
 
+      {trailing ? (
+        <span className="flex shrink-0 items-center justify-center text-greyscale-text-disabled-500">
+          {trailing}
+        </span>
+      ) : null}
+
       {/* 오른쪽: 카운트 */}
-      {count !== undefined && (
+      {trailing === undefined && count !== undefined && (
         <p className="text-body1 shrink-0 text-right text-greyscale-text-disabled-500">
           {count}
         </p>

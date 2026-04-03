@@ -55,7 +55,7 @@ public class NoteController {
             @RequestParam(required = false) Long categoryId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        return ResponseEntity.ok(ApiResponse.ok(noteService.getRecentLessonNotes(user.getId(), categoryId)));
+        return ResponseEntity.ok(ApiResponse.ok(noteService.getRecentLessonNotes(user, categoryId)));
     }
 
     @GetMapping("/{noteId}")
@@ -64,7 +64,7 @@ public class NoteController {
             @PathVariable Long noteId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        return ResponseEntity.ok(ApiResponse.ok(noteService.getNoteDetail(user.getId(), noteId)));
+        return ResponseEntity.ok(ApiResponse.ok(noteService.getNoteDetail(user, noteId)));
     }
 
     @PostMapping("/{noteId}/retry-processing")
@@ -73,7 +73,7 @@ public class NoteController {
             @PathVariable Long noteId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        noteService.retryLessonNoteProcessing(user.getId(), noteId);
+        noteService.retryLessonNoteProcessing(user, noteId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
 
@@ -87,7 +87,7 @@ public class NoteController {
             @PathVariable Long noteId
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        noteService.deleteNote(user.getId(), noteId);
+        noteService.deleteNote(user, noteId);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
 
@@ -102,7 +102,7 @@ public class NoteController {
             @Valid @RequestBody RenameNoteRequest req
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        NoteSummary updated = noteService.renameNote(user.getId(), noteId, req);
+        NoteSummary updated = noteService.renameNote(user, noteId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
@@ -117,7 +117,7 @@ public class NoteController {
             @Valid @RequestBody MoveNoteRequest req
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        NoteSummary updated = noteService.moveNote(user.getId(), noteId, req);
+        NoteSummary updated = noteService.moveNote(user, noteId, req);
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
@@ -131,7 +131,7 @@ public class NoteController {
             @Valid @RequestBody BulkMoveRequest req
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        noteService.bulkMoveNotes(user.getId(), req);
+        noteService.bulkMoveNotes(user, req);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
 
@@ -145,7 +145,7 @@ public class NoteController {
             @Valid @RequestBody BulkDeleteRequest req
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
-        noteService.bulkDeleteNotes(user.getId(), req);
+        noteService.bulkDeleteNotes(user, req);
         return ResponseEntity.ok(ApiResponse.noContent());
     }
 }

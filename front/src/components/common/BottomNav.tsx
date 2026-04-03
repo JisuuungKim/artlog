@@ -45,7 +45,7 @@ const UserIcon = ({ active }: { active: boolean }) => (
 const navItems = [
   { id: 1, tab: 'home', label: '홈', icon: HomeIcon },
   { id: 2, tab: 'notes', label: '검색', icon: FolderIcon },
-  { id: 3, tab: 'profile', label: '프로필', icon: UserIcon },
+  { id: 3, tab: 'mypage', label: '프로필', icon: UserIcon },
 ];
 
 export default function BottomNav({}: BottomNavProps) {

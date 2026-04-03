@@ -8,22 +8,32 @@ export default function LessonNoteCard({
   createdAt = '2025. 01. 01. 오후 5:09',
   folderName = '전체노트',
   songTitles = ['노래1', '노래2'],
+  onClick,
   editMode = false,
   selected = false,
   isNew = false,
   onSelectionChange,
   onEtcClick,
+  showEtcButton = true,
 }: LessonNoteCardProps) {
   const handleCheckboxClick = () => {
     onSelectionChange?.(!selected);
   };
 
   return (
-    <div className="bg-greyscale-bg-50 rounded-lg p-4 space-y-1 relative">
+    <div
+      className={`bg-greyscale-bg-50 rounded-lg p-4 space-y-1 relative ${
+        onClick ? 'cursor-pointer' : ''
+      }`}
+      onClick={onClick}
+    >
       {editMode && (
         <div
           className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 cursor-pointer"
-          onClick={handleCheckboxClick}
+          onClick={event => {
+            event.stopPropagation();
+            handleCheckboxClick();
+          }}
         >
           <div
             className={`w-[18px] h-[18px] rounded-[5px] border-[1.5px] mx-auto my-auto flex items-center justify-center ${
@@ -49,7 +59,14 @@ export default function LessonNoteCard({
             </div>
           )}
         </div>
-        <EtcGreyscale500Icon onClick={onEtcClick} />
+        {showEtcButton ? (
+          <EtcGreyscale500Icon
+            onClick={event => {
+              event.stopPropagation();
+              onEtcClick?.();
+            }}
+          />
+        ) : null}
       </div>
       <p
         className={`text-greyscale-neutral-600 text-caption1 ${editMode ? 'ml-10' : ''}`}

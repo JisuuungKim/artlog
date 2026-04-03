@@ -3,7 +3,11 @@ import { ListItem } from '@/components/listItem';
 import { SectionHeader } from '@/pages/main/components/sectionHeader';
 import { FolderGreyscale800Icon } from '@/assets/icons';
 import SongSelector from '../lessons/new/components/SongSelector';
-import { BottomSheet, SheetSelector } from '@/components/bottomSheet';
+import {
+  AddDirectlyContent,
+  BottomSheet,
+  SheetSelector,
+} from '@/components/bottomSheet';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InputModal } from '@/components/modal';
@@ -11,9 +15,13 @@ import {
   useCategories,
   useCreateFolder,
   useFolders,
+  useRegisterUserInterestCategory,
   useSongs,
 } from '@/hooks/useNoteBrowser';
 import { useSelectedCategory } from '@/hooks/useSelectedCategory';
+import { useTextInput } from '@/components/textInput';
+
+type CategoryBottomSheetMode = 'select' | 'create';
 
 export default function Folder() {
   const navigate = useNavigate();
@@ -21,7 +29,10 @@ export default function Folder() {
   const [showAllSongs, setShowAllSongs] = useState(false);
   const [open, setOpen] = useState({ folder: true, music: true });
   const [addFolderModalOpen, setAddFolderModalOpen] = useState(false);
-  const [isCategoryBottomSheetOpen, setIsCategoryBottomSheetOpen] = useState(false);
+  const [isCategoryBottomSheetOpen, setIsCategoryBottomSheetOpen] =
+    useState(false);
+  const [categoryBottomSheetMode, setCategoryBottomSheetMode] =
+    useState<CategoryBottomSheetMode>('select');
   const { effectiveSelectedCategoryId, setSelectedCategoryId } =
     useSelectedCategory(categoriesData);
   const { data: foldersData = [] } = useFolders(
@@ -31,10 +42,12 @@ export default function Folder() {
     effectiveSelectedCategoryId || undefined
   );
   const createFolder = useCreateFolder();
+  const registerUserInterestCategory = useRegisterUserInterestCategory();
+  const categoryInput = useTextInput('');
   const selectedCategoryName =
     categoriesData.find(
       category => String(category.id) === effectiveSelectedCategoryId
-    )?.name ?? '보컬';
+    )?.name ?? '관심 카테고리 없음';
 
   const toggle = (key: 'folder' | 'music') =>
     setOpen(prev => ({ ...prev, [key]: !prev[key] }));
@@ -53,12 +66,44 @@ export default function Folder() {
     setAddFolderModalOpen(false);
   };
 
+  const handleCategoryBottomSheetOpen = () => {
+    setCategoryBottomSheetMode('select');
+    setIsCategoryBottomSheetOpen(true);
+  };
+
+  const handleCategoryBottomSheetClose = () => {
+    setCategoryBottomSheetMode('select');
+    categoryInput.onClear();
+    setIsCategoryBottomSheetOpen(false);
+  };
+
+  const handleAddCategory = () => {
+    setCategoryBottomSheetMode('create');
+  };
+
+  const handleAddCategorySubmit = () => {
+    const name = categoryInput.value.trim();
+    if (!name || registerUserInterestCategory.isPending) {
+      return;
+    }
+
+    registerUserInterestCategory.mutate(
+      { name },
+      {
+        onSuccess: category => {
+          setSelectedCategoryId(String(category.id));
+          handleCategoryBottomSheetClose();
+        },
+      }
+    );
+  };
+
   return (
     <div className="space-y-4">
       <AppBar
         variant="category-title-only"
         title={selectedCategoryName}
-        onCategoryChevronClick={() => setIsCategoryBottomSheetOpen(true)}
+        onCategoryChevronClick={handleCategoryBottomSheetOpen}
       />
       <div className="py-5 flex flex-col gap-8">
         <div className="px-5">
@@ -120,17 +165,39 @@ export default function Folder() {
       />
       <BottomSheet
         isOpen={isCategoryBottomSheetOpen}
-        onClose={() => setIsCategoryBottomSheetOpen(false)}
-        title="카테고리"
+        onClose={handleCategoryBottomSheetClose}
+        title={
+          categoryBottomSheetMode === 'create'
+            ? '카테고리 직접 추가하기'
+            : '카테고리'
+        }
         buttonText="확인"
+        showButton={categoryBottomSheetMode === 'select'}
       >
-        <SheetSelector
-          options={categoriesData}
-          selected={effectiveSelectedCategoryId}
-          onSelect={setSelectedCategoryId}
-          onAddCategory={() => console.log('카테고리 추가하기')}
-          addCategoryLabel="카테고리 추가하기"
-        />
+        {categoryBottomSheetMode === 'select' ? (
+          <SheetSelector
+            options={categoriesData}
+            selected={effectiveSelectedCategoryId}
+            onSelect={setSelectedCategoryId}
+            onAddCategory={handleAddCategory}
+            addCategoryLabel="카테고리 추가하기"
+          />
+        ) : (
+          <AddDirectlyContent
+            inputProps={{
+              isTyping: categoryInput.isTyping,
+              isFocused: categoryInput.isFocused,
+              value: categoryInput.value,
+              onChange: categoryInput.onChange,
+              onFocus: categoryInput.onFocus,
+              onBlur: categoryInput.onBlur,
+              onClear: categoryInput.onClear,
+            }}
+            onAdd={handleAddCategorySubmit}
+            placeholder="카테고리 이름을 입력해주세요"
+            maxLength={20}
+          />
+        )}
       </BottomSheet>
     </div>
   );

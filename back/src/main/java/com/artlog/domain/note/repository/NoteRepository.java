@@ -43,6 +43,17 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
             Pageable pageable
     );
 
+    @Query("SELECT n FROM Note n WHERE n.user.id = :userId" +
+           " AND n.noteType = :noteType" +
+           " AND n.folder.category.id IN :categoryIds" +
+           " ORDER BY n.createdAt DESC")
+    List<Note> findRecentByUserIdAndCategoryIdsAndType(
+            @Param("userId") Long userId,
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("noteType") NoteType noteType,
+            Pageable pageable
+    );
+
     /** 소유자 확인용 단건 조회 */
     Optional<Note> findByIdAndUserId(Long id, Long userId);
 

@@ -19,6 +19,14 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
             @Param("categoryId") Long categoryId
     );
 
+    @Query("SELECT f FROM Folder f WHERE f.user.id = :userId" +
+           " AND f.category.id IN :categoryIds" +
+           " ORDER BY f.createdAt ASC")
+    List<Folder> findByUserIdAndCategoryIdsOrderByCreatedAtAsc(
+            @Param("userId") Long userId,
+            @Param("categoryIds") List<Long> categoryIds
+    );
+
     Optional<Folder> findByIdAndUser_Id(Long folderId, Long userId);
 
     Optional<Folder> findByIdAndUser_IdAndCategory_Id(Long folderId, Long userId, Long categoryId);

@@ -25,8 +25,21 @@ public class FolderService {
     private final NoteRepository noteRepository;
 
     /** 카테고리별(혹은 전체) 폴더 목록 조회 */
-    public List<FolderSummary> getFolders(Long userId, Long categoryId) {
-        return folderRepository.findByUserIdAndCategoryIdOrderByCreatedAtAsc(userId, categoryId)
+    public List<FolderSummary> getFolders(User user, Long categoryId) {
+        List<Folder> folders;
+
+        if (categoryId == null) {
+            List<Long> categoryIds = categoryFolderPolicyService.getUserInterestCategoryIds(user);
+            if (categoryIds.isEmpty()) {
+                return List.of();
+            }
+            folders = folderRepository.findByUserIdAndCategoryIdsOrderByCreatedAtAsc(user.getId(), categoryIds);
+        } else {
+            Category category = categoryFolderPolicyService.resolveUserInterestCategory(user, categoryId);
+            folders = folderRepository.findByUserIdAndCategoryIdOrderByCreatedAtAsc(user.getId(), category.getId());
+        }
+
+        return folders
                 .stream()
                 .map(FolderSummary::from)
                 .toList();
@@ -35,7 +48,7 @@ public class FolderService {
     /** 새 폴더 생성 */
     @Transactional
     public FolderSummary createFolder(User user, CreateFolderRequest req) {
-        Category category = categoryFolderPolicyService.resolveCategory(req.categoryId());
+        Category category = categoryFolderPolicyService.resolveUserInterestCategory(user, req.categoryId());
 
         Folder folder = Folder.builder()
                 .name(req.name())
@@ -48,8 +61,8 @@ public class FolderService {
 
     /** 폴더 이름 변경 */
     @Transactional
-    public FolderSummary renameFolder(Long userId, Long folderId, RenameFolderRequest req) {
-        Folder folder = getFolderAndVerifyOwner(userId, folderId);
+    public FolderSummary renameFolder(User user, Long folderId, RenameFolderRequest req) {
+        Folder folder = getFolderAndVerifyOwner(user, folderId);
 
         if (Boolean.TRUE.equals(folder.getIsSystem())) {
             throw ArtlogException.badRequest("시스템 폴더의 이름은 변경할 수 없습니다.");
@@ -68,8 +81,8 @@ public class FolderService {
      * </ol>
      */
     @Transactional
-    public void deleteFolder(Long userId, Long folderId) {
-        Folder folder = getFolderAndVerifyOwner(userId, folderId);
+    public void deleteFolder(User user, Long folderId) {
+        Folder folder = getFolderAndVerifyOwner(user, folderId);
 
         if (Boolean.TRUE.equals(folder.getIsSystem())) {
             throw ArtlogException.badRequest("시스템 폴더는 삭제할 수 없습니다.");
@@ -77,22 +90,24 @@ public class FolderService {
 
         Long categoryId = folder.getCategory() != null ? folder.getCategory().getId() : null;
         Folder targetFolder = folderRepository.findFirstByUserIdAndCategory_IdAndIdNotOrderByCreatedAtAsc(
-                        userId,
+                        user.getId(),
                         categoryId,
                         folderId
                 )
                 .orElseGet(() -> categoryFolderPolicyService.createDefaultFolder(folder.getUser(), folder.getCategory()));
 
         // 소속 노트를 기본 폴더(또는 다른 첫 폴더)로 벌크 이동
-        noteRepository.moveFolderNotes(folderId, targetFolder.getId(), userId);
+        noteRepository.moveFolderNotes(folderId, targetFolder.getId(), user.getId());
 
         folderRepository.delete(folder);
     }
 
     // --- 내부 헬퍼 ---
 
-    private Folder getFolderAndVerifyOwner(Long userId, Long folderId) {
-        return folderRepository.findByIdAndUser_Id(folderId, userId)
+    private Folder getFolderAndVerifyOwner(User user, Long folderId) {
+        Folder folder = folderRepository.findByIdAndUser_Id(folderId, user.getId())
                 .orElseThrow(() -> ArtlogException.notFound("폴더를 찾을 수 없거나 접근 권한이 없습니다."));
+        categoryFolderPolicyService.validateUserInterestCategory(user, folder.getCategory());
+        return folder;
     }
 }

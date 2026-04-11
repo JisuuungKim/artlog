@@ -4,12 +4,20 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InquiryActionBar from './components/InquiryActionBar';
 import InquiryMessageField from './components/InquiryMessageField';
+import { useInquiry } from '@/hooks/useInquiry';
 
 export default function Inquiry() {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
+  const { mutate: submitInquiry, isPending } = useInquiry();
 
   const hasMessage = message.trim().length > 0;
+
+  const handleSubmit = () => {
+    submitInquiry(message.trim(), {
+      onSuccess: () => navigate(-1),
+    });
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-greyscale-bg-50 pt-[10px]">
@@ -36,7 +44,7 @@ export default function Inquiry() {
         문의하신 내용은 7일 이내에 메일로 답변드립니다.
       </p>
 
-      <InquiryActionBar enabled={hasMessage} />
+      <InquiryActionBar enabled={hasMessage} onClick={handleSubmit} isPending={isPending} />
     </div>
   );
 }

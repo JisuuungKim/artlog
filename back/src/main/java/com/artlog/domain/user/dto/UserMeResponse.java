@@ -9,6 +9,7 @@ public record UserMeResponse(
         String email,
         String name,
         Integer remainingCount,
+        java.time.OffsetDateTime lastResetDate,
         Boolean hideIphoneUploadGuide,
         Boolean hideMobileDataGuide
 ) {
@@ -20,6 +21,7 @@ public record UserMeResponse(
                 user.getEmail(),
                 user.getName(),
                 user.getRemainingCount(),
+                user.getLastResetDate(),
                 user.getHideIphoneUploadGuide(),
                 user.getHideMobileDataGuide()
         );

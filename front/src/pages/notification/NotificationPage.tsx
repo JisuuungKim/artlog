@@ -3,6 +3,7 @@ import { BackGreyscale800Icon } from '@/assets/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import NotificationEmptyState from './components/NotificationEmptyState';
 import NotificationItem from './components/NotificationItem';
+import { useNotifications, type NotificationItem as RawNotification } from '@/hooks/useNotifications';
 
 type NotificationData = {
   id: number;
@@ -12,37 +13,19 @@ type NotificationData = {
   isHighlighted?: boolean;
 };
 
-const MOCK_NOTIFICATIONS: NotificationData[] = [
-  {
-    id: 1,
-    type: 'lesson-note',
-    timeLabel: '15분 전',
-    message: '레슨 노트 분석이 완료됐어요!\n눌러서 레슨 노트를 확인하세요!',
-  },
-  {
-    id: 2,
-    type: 'lesson-note',
-    timeLabel: '12시간 전',
-    message:
-      '네트워크가 끊겨서 레슨 노트 분석이 중단됐어요.\n연결 상태 확인 후 다시 시도해 주세요.',
-    isHighlighted: true,
-  },
-  {
-    id: 3,
-    type: 'notice',
-    timeLabel: '1일 전',
-    message: '연습 노트 제작 기능이 추가되었어요!',
-    isHighlighted: true,
-  },
-  {
-    id: 4,
-    type: 'lesson-note',
-    timeLabel: '7일 전',
-    message:
-      '네트워크가 끊겨서 레슨 노트 분석이 중단됐어요.\n연결 상태 확인 후 다시 시도해 주세요.',
-    isHighlighted: true,
-  },
-];
+function toTimeLabel(createdAt: string): string {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
+}
+
+function toNotificationType(type: string): 'lesson-note' | 'notice' {
+  return type === 'notice' ? 'notice' : 'lesson-note';
+}
 
 function SettingsIcon() {
   return (
@@ -72,7 +55,18 @@ export default function NotificationPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isEmptyPreview = searchParams.get('empty') === 'true';
-  const notifications = isEmptyPreview ? [] : MOCK_NOTIFICATIONS;
+  const { data: rawNotifications = [] } = useNotifications();
+
+  const notifications: NotificationData[] = isEmptyPreview
+    ? []
+    : rawNotifications.map((n: RawNotification) => ({
+        id: n.id,
+        type: toNotificationType(n.type),
+        timeLabel: toTimeLabel(n.createdAt),
+        message: n.message,
+        isHighlighted: !n.isRead,
+      }));
+
   const hasNotifications = notifications.length > 0;
 
   return (

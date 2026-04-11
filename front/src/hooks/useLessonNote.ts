@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, type ApiResponse } from '@/lib/api';
+import { useEffect } from 'react';
+import {
+  API_BASE_URL,
+  api,
+  authTokenStorage,
+  type ApiResponse,
+} from '@/lib/api';
+import { USER_QUERY_KEY } from './useUser';
 
 export type LessonNoteStatus =
   | 'PROCESSING'
@@ -7,6 +14,16 @@ export type LessonNoteStatus =
   | 'COMPLETED'
   | 'FAILED'
   | 'ARCHIVED';
+
+export type LessonProcessingStage =
+  | 'queued'
+  | 'stt'
+  | 'correction'
+  | 'feedback_analysis'
+  | 'lesson_note'
+  | 'review_lesson_note'
+  | 'completed'
+  | 'failed';
 
 export type LessonCardItem = {
   title: string | null;
@@ -48,6 +65,9 @@ export type LessonNoteDetail = {
   nextAssignment: LessonCardItem[];
   feedbackGroups: LessonFeedbackGroup[];
   lyricsFeedbacks: LessonLyricsFeedback[];
+  processingStage?: LessonProcessingStage;
+  processingProgress?: number;
+  processingMessage?: string;
 };
 
 export type RecentLessonNote = {
@@ -57,6 +77,17 @@ export type RecentLessonNote = {
   folderName: string | null;
   songTitles: string[];
   createdAt: string;
+  processingStage?: LessonProcessingStage;
+  processingProgress?: number;
+  processingMessage?: string;
+};
+
+type LessonNoteProgressEvent = {
+  noteId: number;
+  status: LessonNoteStatus;
+  stage: LessonProcessingStage;
+  progress: number;
+  message: string;
 };
 
 type CreatedLessonNote = {
@@ -128,12 +159,13 @@ export function useCreateLessonNote() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
+      queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
     },
   });
 }
 
 export function useRecentLessonNotes(categoryId?: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['recent-lesson-notes', categoryId],
     queryFn: async () => {
       const response = await api.get<ApiResponse<RecentLessonNote[]>>(
@@ -144,9 +176,15 @@ export function useRecentLessonNotes(categoryId?: string) {
       );
       return response.data.data;
     },
-    refetchInterval: query =>
-      query.state.data?.some(note => note.status === 'PROCESSING') ? 2000 : false,
   });
+
+  useLessonNoteStatusEvents(
+    query.data
+      ?.filter(note => note.status === 'PROCESSING')
+      .map(note => note.id) ?? []
+  );
+
+  return query;
 }
 
 export function useRetryLessonNoteProcessing() {
@@ -154,7 +192,9 @@ export function useRetryLessonNoteProcessing() {
 
   return useMutation({
     mutationFn: async (noteId: number) => {
-      await api.post<ApiResponse<void>>(`/api/v1/notes/${noteId}/retry-processing`);
+      await api.post<ApiResponse<void>>(
+        `/api/v1/notes/${noteId}/retry-processing`
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
@@ -166,7 +206,13 @@ export function useRenameLessonNote() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ noteId, title }: { noteId: number; title: string }) => {
+    mutationFn: async ({
+      noteId,
+      title,
+    }: {
+      noteId: number;
+      title: string;
+    }) => {
       await api.patch<ApiResponse<void>>(`/api/v1/notes/${noteId}/title`, {
         title,
       });
@@ -199,7 +245,13 @@ export function useMoveLessonNote() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ noteId, folderId }: { noteId: number; folderId: number }) => {
+    mutationFn: async ({
+      noteId,
+      folderId,
+    }: {
+      noteId: number;
+      folderId: number;
+    }) => {
       await api.patch<ApiResponse<void>>(`/api/v1/notes/${noteId}/move`, {
         folderId,
       });
@@ -214,7 +266,7 @@ export function useMoveLessonNote() {
 }
 
 export function useLessonNote(noteId?: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['lesson-note', noteId],
     enabled: Boolean(noteId),
     queryFn: async () => {
@@ -223,7 +275,88 @@ export function useLessonNote(noteId?: string) {
       );
       return response.data.data;
     },
-    refetchInterval: query =>
-      query.state.data?.status === 'PROCESSING' ? 2000 : false,
   });
+
+  useLessonNoteStatusEvents(
+    noteId && query.data?.status === 'PROCESSING' ? [noteId] : []
+  );
+
+  return query;
+}
+
+function useLessonNoteStatusEvents(noteIds: Array<number | string>) {
+  const queryClient = useQueryClient();
+  const noteIdKey = noteIds.join(',');
+
+  useEffect(() => {
+    const accessToken = authTokenStorage.get();
+    const activeNoteIds = noteIdKey ? noteIdKey.split(',') : [];
+    if (!accessToken || activeNoteIds.length === 0) {
+      return;
+    }
+
+    const eventSources = activeNoteIds.map(noteId => {
+      const url = new URL(`/api/v1/notes/${noteId}/events`, API_BASE_URL);
+      url.searchParams.set('accessToken', accessToken);
+
+      const eventSource = new EventSource(url.toString());
+      eventSource.addEventListener('progress', event => {
+        if (!(event instanceof MessageEvent)) {
+          return;
+        }
+
+        const progressEvent = JSON.parse(event.data) as LessonNoteProgressEvent;
+        updateLessonNoteProgressCache(queryClient, progressEvent);
+
+        if (['COMPLETED', 'FAILED', 'ARCHIVED'].includes(progressEvent.status)) {
+          queryClient.invalidateQueries({
+            queryKey: ['lesson-note', String(progressEvent.noteId)],
+          });
+          queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
+          eventSource.close();
+        }
+      });
+
+      return eventSource;
+    });
+
+    return () => {
+      eventSources.forEach(eventSource => eventSource.close());
+    };
+  }, [noteIdKey, queryClient]);
+}
+
+function updateLessonNoteProgressCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  progressEvent: LessonNoteProgressEvent
+) {
+  queryClient.setQueriesData<RecentLessonNote[]>(
+    { queryKey: ['recent-lesson-notes'] },
+    notes =>
+      notes?.map(note =>
+        note.id === progressEvent.noteId
+          ? {
+              ...note,
+              status: progressEvent.status,
+              processingStage: progressEvent.stage,
+              processingProgress: progressEvent.progress,
+              processingMessage: progressEvent.message,
+            }
+          : note
+      )
+  );
+
+  queryClient.setQueryData<LessonNoteDetail>(
+    ['lesson-note', String(progressEvent.noteId)],
+    note =>
+      note
+        ? {
+            ...note,
+            status: progressEvent.status,
+            processingStage: progressEvent.stage,
+            processingProgress: progressEvent.progress,
+            processingMessage: progressEvent.message,
+          }
+        : note
+  );
 }

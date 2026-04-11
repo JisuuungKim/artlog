@@ -4,23 +4,31 @@ import com.artlog.domain.note.entity.FeedbackCard;
 import com.artlog.domain.note.entity.FeedbackKeyword;
 import com.artlog.domain.note.entity.LyricsFeedback;
 import com.artlog.domain.note.entity.Note;
+import com.artlog.domain.note.entity.NoteStatus;
 import com.artlog.domain.note.repository.NoteRepository;
 import com.artlog.global.type.TitleContentItem;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +46,9 @@ public class LessonNoteProcessingService {
     );
 
     private final NoteRepository noteRepository;
+    private final LessonNoteEventService lessonNoteEventService;
     private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.ai.base-url}")
     private String aiBaseUrl;
@@ -76,9 +86,11 @@ public class LessonNoteProcessingService {
             }
 
             transactionTemplate.executeWithoutResult(status -> applyResponse(noteId, response.lessonNote()));
+            lessonNoteEventService.complete(noteId, NoteStatus.COMPLETED);
         } catch (Exception exception) {
             log.error("Lesson note AI processing failed. noteId={}", noteId, exception);
             transactionTemplate.executeWithoutResult(status -> markFailed(noteId));
+            lessonNoteEventService.complete(noteId, NoteStatus.FAILED);
         }
     }
 
@@ -122,6 +134,8 @@ public class LessonNoteProcessingService {
         );
 
         try {
+            lessonNoteEventService.update(payload.noteId(), NoteStatus.PROCESSING, "stt");
+
             SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
             requestFactory.setConnectTimeout(aiConnectTimeoutMs);
             requestFactory.setReadTimeout(aiReadTimeoutMs);
@@ -131,12 +145,24 @@ public class LessonNoteProcessingService {
                     .requestFactory(requestFactory)
                     .build()
                     .post()
-                    .uri("/api/v1/lesson-notes/generate")
+                    .uri("/api/v1/lesson-notes/generate/stream")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
                     .body(requestBody)
-                    .retrieve()
-                    .body(LessonNoteGenerateResponse.class);
+                    .exchange((request, response) -> {
+                        if (response.getStatusCode().isError()) {
+                            String responseBody = StreamUtils.copyToString(
+                                    response.getBody(),
+                                    StandardCharsets.UTF_8
+                            );
+                            throw new ResponseStatusException(
+                                    response.getStatusCode(),
+                                    "AI request failed. body=" + responseBody
+                            );
+                        }
+
+                        return readLessonNoteStream(payload.noteId(), response);
+                    });
         } catch (HttpStatusCodeException exception) {
             log.error(
                     "AI request failed. status={} body={}",
@@ -145,6 +171,74 @@ public class LessonNoteProcessingService {
             );
             throw exception;
         }
+    }
+
+    private LessonNoteGenerateResponse readLessonNoteStream(Long noteId, ClientHttpResponse response) throws IOException {
+        LessonNoteGenerateResponse result = null;
+        String eventName = "message";
+        StringBuilder data = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) {
+                    LessonNoteGenerateResponse parsed = handleSseEvent(noteId, eventName, data.toString());
+                    if (parsed != null) {
+                        result = parsed;
+                    }
+                    eventName = "message";
+                    data.setLength(0);
+                    continue;
+                }
+
+                if (line.startsWith("event:")) {
+                    eventName = line.substring("event:".length()).trim();
+                } else if (line.startsWith("data:")) {
+                    if (!data.isEmpty()) {
+                        data.append('\n');
+                    }
+                    data.append(line.substring("data:".length()).trim());
+                }
+            }
+        }
+
+        if (!data.isEmpty()) {
+            LessonNoteGenerateResponse parsed = handleSseEvent(noteId, eventName, data.toString());
+            if (parsed != null) {
+                result = parsed;
+            }
+        }
+
+        if (result == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 스트림이 최종 결과를 반환하지 않았습니다.");
+        }
+
+        return result;
+    }
+
+    private LessonNoteGenerateResponse handleSseEvent(Long noteId, String eventName, String data) throws IOException {
+        if (data == null || data.isBlank()) {
+            return null;
+        }
+
+        return switch (eventName) {
+            case "progress" -> {
+                AiProgressPayload progressPayload = objectMapper.readValue(data, AiProgressPayload.class);
+                if (progressPayload.stage() != null && !progressPayload.stage().isBlank()) {
+                    lessonNoteEventService.update(noteId, NoteStatus.PROCESSING, progressPayload.stage());
+                }
+                yield null;
+            }
+            case "result" -> objectMapper.readValue(data, LessonNoteGenerateResponse.class);
+            case "error" -> {
+                AiErrorPayload errorPayload = objectMapper.readValue(data, AiErrorPayload.class);
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        errorPayload.message() != null ? errorPayload.message() : "AI 스트림 처리에 실패했습니다."
+                );
+            }
+            default -> null;
+        };
     }
 
     private boolean isTimeoutException(ResourceAccessException exception) {
@@ -256,6 +350,12 @@ public class LessonNoteProcessingService {
             String transcript,
             @JsonProperty("lesson_note") LessonNoteBody lessonNote
     ) {
+    }
+
+    private record AiProgressPayload(String stage) {
+    }
+
+    private record AiErrorPayload(String message) {
     }
 
     private record LessonNoteBody(

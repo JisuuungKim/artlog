@@ -27,9 +27,16 @@ settings = get_settings()
 
 # ── LangSmith 추적 설정 ────────────────────────────────────────────
 # .env에 LANGSMITH_TRACING=true 와 LANGSMITH_API_KEY 를 입력하면 자동 활성화
-os.environ.setdefault("LANGCHAIN_TRACING_V2", settings.langsmith_tracing)
-os.environ.setdefault("LANGCHAIN_API_KEY", settings.langsmith_api_key)
-os.environ.setdefault("LANGCHAIN_PROJECT", settings.langsmith_project)
+os.environ["LANGSMITH_TRACING"] = settings.langsmith_tracing
+os.environ["LANGCHAIN_TRACING_V2"] = settings.langsmith_tracing
+os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
+os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+os.environ["LANGSMITH_ENDPOINT"] = settings.langsmith_endpoint
+if settings.langsmith_api_key:
+    os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
+    os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
+if settings.openai_api_key:
+    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
 
 
 # ────────────────────────────────────────────────────────────────

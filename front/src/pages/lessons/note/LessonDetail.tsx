@@ -55,7 +55,7 @@ export default function LessonDetail() {
   };
 
   return (
-    <div>
+    <div className="flex min-h-screen flex-col">
       <LessonTitleCard
         title={data?.title ?? '2026.01.20. 레슨노트'}
         formattedDate={formattedDate}
@@ -75,6 +75,8 @@ export default function LessonDetail() {
 
       {isProcessing ? (
         <LessonProcessingContent
+          progress={data?.processingProgress}
+          message={data?.processingMessage}
           onCancel={handleCancelProcessing}
           isCancelling={deleteLessonNote.isPending}
         />

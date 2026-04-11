@@ -5,10 +5,7 @@ import {
 } from '@/assets/icons';
 import { Button } from '@/components/button';
 import AppBar from '@/components/appBar';
-import {
-  AddDirectlyContent,
-  BottomSheet,
-} from '@/components/bottomSheet';
+import { AddDirectlyContent, BottomSheet } from '@/components/bottomSheet';
 import { useRegisterUserInterestCategory } from '@/hooks/useNoteBrowser';
 import { useTextInput } from '@/components/textInput';
 import { useState, type ReactNode } from 'react';
@@ -16,8 +13,14 @@ import { useNavigate } from 'react-router-dom';
 
 const MAX_SELECTION_COUNT = 5;
 
-const INTEREST_OPTIONS = ['보컬', '연기', '기타', '피아노', '우쿨렐레'] as const;
-const DEFAULT_SELECTED_OPTIONS = [] as const;
+const INTEREST_OPTIONS = [
+  '보컬',
+  '연기',
+  '기타',
+  '피아노',
+  '우쿨렐레',
+] as const;
+const DEFAULT_SELECTED_OPTIONS = ['보컬'] as const;
 
 type InterestOption = string;
 
@@ -61,9 +64,9 @@ export default function Interests() {
   const [interestOptions, setInterestOptions] = useState<InterestOption[]>([
     ...INTEREST_OPTIONS,
   ]);
-  const [selectedOptions, setSelectedOptions] = useState<InterestOption[]>(
-    [...DEFAULT_SELECTED_OPTIONS] as InterestOption[]
-  );
+  const [selectedOptions, setSelectedOptions] = useState<InterestOption[]>([
+    ...DEFAULT_SELECTED_OPTIONS,
+  ] as InterestOption[]);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const registerUserInterestCategory = useRegisterUserInterestCategory();
 
@@ -100,35 +103,27 @@ export default function Interests() {
   const handleDirectAddSubmit = () => {
     const newInterest = interestInput.value.trim();
 
-    if (!newInterest || registerUserInterestCategory.isPending) {
+    if (!newInterest) {
       return;
     }
 
-    registerUserInterestCategory.mutate(
-      { name: newInterest },
-      {
-        onSuccess: category => {
-          setInterestOptions(prev =>
-            prev.includes(category.name) ? prev : [...prev, category.name]
-          );
-          setSelectedOptions(prev => {
-            if (prev.includes(category.name)) {
-              return prev;
-            }
-
-            if (prev.length >= MAX_SELECTION_COUNT) {
-              return prev;
-            }
-
-            return [...prev, category.name];
-          });
-          handleBottomSheetClose();
-        },
-      }
+    setInterestOptions(prev =>
+      prev.includes(newInterest) ? prev : [...prev, newInterest]
     );
+    setSelectedOptions(prev => {
+      if (prev.includes(newInterest)) return prev;
+      if (prev.length >= MAX_SELECTION_COUNT) return prev;
+      return [...prev, newInterest];
+    });
+    handleBottomSheetClose();
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    await Promise.all(
+      selectedOptions.map(name =>
+        registerUserInterestCategory.mutateAsync({ name })
+      )
+    );
     navigate('/');
   };
 
@@ -194,7 +189,7 @@ export default function Interests() {
           hierarchy="primary"
           size="large"
           className="w-full"
-          disabled={!hasSelection}
+          disabled={!hasSelection || registerUserInterestCategory.isPending}
           onClick={handleStart}
         >
           시작하기

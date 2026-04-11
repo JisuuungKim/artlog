@@ -1,7 +1,49 @@
+import json
+from collections.abc import AsyncIterator
+
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import StreamingResponse
+from app.graph.nodes.lesson_note_agent import MAX_REGEN_ATTEMPTS
 from app.schema.models import LessonNoteRequest, LessonNoteResponse
 
 router = APIRouter()
+
+NEXT_STAGE_BY_COMPLETED_STAGE = {
+    "stt": "correction",
+    "correction": "feedback_analysis",
+    "feedback_analysis": "lesson_note",
+    "lesson_note": "review_lesson_note",
+}
+
+
+def build_initial_state(body: LessonNoteRequest) -> dict:
+    return {
+        "session_id": body.session_id,
+        "audio_path": body.audio_path,
+        "song_title": body.song_title,
+        "keywords": [kw.model_dump() for kw in body.keywords],
+        "transcript": "",
+        "lesson_note": None,
+        "needs_regeneration": False,
+        "review_feedback": None,
+        "errors": [],
+        "retry_count": 0,
+    }
+
+
+def to_note_dict(lesson_note):
+    return (
+        lesson_note.model_dump()
+        if hasattr(lesson_note, "model_dump")
+        else lesson_note
+    )
+
+
+def format_sse(event: str, data: dict) -> str:
+    return (
+        f"event: {event}\n"
+        f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+    )
 
 
 @router.post(
@@ -28,18 +70,7 @@ async def generate_lesson_note(
     workflow = request.app.state.workflow
     config = {"configurable": {"thread_id": body.session_id}}
 
-    initial_state = {
-        "session_id": body.session_id,
-        "audio_path": body.audio_path,
-        "song_title": body.song_title,
-        "keywords": [kw.model_dump() for kw in body.keywords],
-        "transcript": "",
-        "lesson_note": None,
-        "needs_regeneration": False,
-        "review_feedback": None,
-        "errors": [],
-        "retry_count": 0,
-    }
+    initial_state = build_initial_state(body)
 
     try:
         final_state = await workflow.ainvoke(initial_state, config=config)
@@ -56,14 +87,71 @@ async def generate_lesson_note(
             detail="워크플로우가 레슨노트를 반환하지 않았습니다.",
         )
 
-    note_dict = (
-        lesson_note.model_dump()
-        if hasattr(lesson_note, "model_dump")
-        else lesson_note
-    )
-
     return LessonNoteResponse(
         session_id=body.session_id,
         transcript=final_state.get("transcript", ""),
-        lesson_note=note_dict,
+        lesson_note=to_note_dict(lesson_note),
     )
+
+
+@router.post(
+    "/generate/stream",
+    summary="레슨노트 생성 스트림",
+    description="AI Agent 단계 변화를 SSE progress 이벤트로 보내고, 마지막에 result 이벤트를 보냅니다.",
+)
+async def stream_lesson_note_generation(
+    body: LessonNoteRequest,
+    request: Request,
+) -> StreamingResponse:
+    workflow = request.app.state.workflow
+    config = {"configurable": {"thread_id": body.session_id}}
+    initial_state = build_initial_state(body)
+
+    async def event_stream() -> AsyncIterator[str]:
+        state = dict(initial_state)
+        last_emitted_stage = None
+
+        def progress(stage: str) -> str:
+            nonlocal last_emitted_stage
+            last_emitted_stage = stage
+            return format_sse("progress", {"stage": stage})
+
+        try:
+            yield progress("stt")
+
+            async for update in workflow.astream(
+                initial_state,
+                config=config,
+                stream_mode="updates",
+            ):
+                for node_name, node_update in update.items():
+                    if isinstance(node_update, dict):
+                        state.update(node_update)
+
+                    next_stage = NEXT_STAGE_BY_COMPLETED_STAGE.get(node_name)
+                    if (
+                        node_name == "review_lesson_note"
+                        and state.get("needs_regeneration")
+                        and state.get("retry_count", 0) < MAX_REGEN_ATTEMPTS
+                    ):
+                        next_stage = "lesson_note"
+
+                    if next_stage and next_stage != last_emitted_stage:
+                        yield progress(next_stage)
+
+            lesson_note = state.get("lesson_note")
+            if not lesson_note:
+                raise RuntimeError("워크플로우가 레슨노트를 반환하지 않았습니다.")
+
+            yield format_sse(
+                "result",
+                {
+                    "session_id": body.session_id,
+                    "transcript": state.get("transcript", ""),
+                    "lesson_note": to_note_dict(lesson_note),
+                },
+            )
+        except Exception as exc:
+            yield format_sse("error", {"message": str(exc)})
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

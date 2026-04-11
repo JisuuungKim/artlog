@@ -21,6 +21,7 @@ import {
   useRetryLessonNoteProcessing,
 } from '@/hooks/useLessonNote';
 import { useNavigate } from 'react-router-dom';
+import { LessonEmptyState } from './components/lessonEmptyState';
 
 type CategoryBottomSheetMode = 'select' | 'create';
 
@@ -86,50 +87,61 @@ export default function Home() {
       />
       <div className="pt-9 pb-18 px-5">
         <p className="text-h2 mb-4 text-greyscale-text-title-900">최근 노트</p>
-        <div className="flex flex-col gap-2">
-          {recentNotes.map(note => {
-            if (note.status === 'PROCESSING') {
-              return (
-                <LessonNoteProcessingCard
-                  key={note.id}
-                  title={note.title}
-                  progress={70}
-                  remainingMinute={3}
-                />
-              );
-            }
+        {recentNotes.length === 0 ? (
+          <div className="pt-31">
+            <LessonEmptyState />
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              {recentNotes.map(note => {
+                if (note.status === 'PROCESSING') {
+                  return (
+                    <LessonNoteProcessingCard
+                      key={note.id}
+                      title={note.title}
+                      progress={note.processingProgress ?? 5}
+                      onClick={() => navigate(`/lessons/${note.id}`)}
+                    />
+                  );
+                }
 
-            if (note.status === 'FAILED') {
-              return (
-                <LessonNoteFailedCard
-                  key={note.id}
-                  title={note.title}
-                  onRetry={() => retryLessonNoteProcessing.mutate(note.id)}
-                />
-              );
-            }
+                if (note.status === 'FAILED') {
+                  return (
+                    <LessonNoteFailedCard
+                      key={note.id}
+                      title={note.title}
+                      onRetry={() => retryLessonNoteProcessing.mutate(note.id)}
+                    />
+                  );
+                }
 
-            return (
-              <LessonNoteCard
-                key={note.id}
-                title={note.title}
-                createdAt={new Date(note.createdAt).toLocaleString('ko-KR', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-                folderName={note.folderName ?? '전체노트'}
-                songTitles={note.songTitles}
-                onClick={() => navigate(`/lessons/${note.id}`)}
-              />
-            );
-          })}
-        </div>
-        <div className="flex justify-center pt-4">
-          <Chip variant="default">더보기</Chip>
-        </div>
+                return (
+                  <LessonNoteCard
+                    key={note.id}
+                    title={note.title}
+                    createdAt={new Date(note.createdAt).toLocaleString(
+                      'ko-KR',
+                      {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      }
+                    )}
+                    folderName={note.folderName ?? '전체노트'}
+                    songTitles={note.songTitles}
+                    onClick={() => navigate(`/lessons/${note.id}`)}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex justify-center pt-4">
+              <Chip variant="default">더보기</Chip>
+            </div>
+          </>
+        )}
       </div>
 
       <BottomSheet

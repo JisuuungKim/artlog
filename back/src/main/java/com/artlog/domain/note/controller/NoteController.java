@@ -1,6 +1,7 @@
 package com.artlog.domain.note.controller;
 
 import com.artlog.common.dto.ApiResponse;
+import com.artlog.common.exception.ArtlogException;
 import com.artlog.domain.note.dto.NoteRequest.CreateLessonNoteRequest;
 import com.artlog.domain.note.dto.NoteRequest.BulkDeleteRequest;
 import com.artlog.domain.note.dto.NoteRequest.BulkMoveRequest;
@@ -10,16 +11,23 @@ import com.artlog.domain.note.dto.NoteResponse.CreatedLessonNote;
 import com.artlog.domain.note.dto.NoteResponse.NoteDetail;
 import com.artlog.domain.note.dto.NoteResponse.NoteSummary;
 import com.artlog.domain.note.dto.NoteResponse.UploadedLessonAudio;
+import com.artlog.domain.note.service.LessonNoteEventService;
 import com.artlog.domain.note.service.NoteService;
 import com.artlog.domain.user.entity.User;
+import com.artlog.domain.user.repository.UserRepository;
 import com.artlog.global.security.AuthenticatedUserResolver;
+import com.artlog.global.security.jwt.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/v1/notes")
@@ -27,6 +35,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class NoteController {
 
     private final NoteService noteService;
+    private final LessonNoteEventService lessonNoteEventService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     @PostMapping(value = "/audio-upload", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<UploadedLessonAudio>> uploadLessonAudio(
@@ -65,6 +76,16 @@ public class NoteController {
     ) {
         User user = AuthenticatedUserResolver.resolve(principal);
         return ResponseEntity.ok(ApiResponse.ok(noteService.getNoteDetail(user, noteId)));
+    }
+
+    @GetMapping(value = "/{noteId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter subscribeLessonNoteEvents(
+            HttpServletRequest request,
+            @PathVariable Long noteId
+    ) {
+        User user = resolveSseUser(request);
+        NoteDetail note = noteService.getNoteDetail(user, noteId);
+        return lessonNoteEventService.subscribe(noteId, note.status());
     }
 
     @PostMapping("/{noteId}/retry-processing")
@@ -147,5 +168,25 @@ public class NoteController {
         User user = AuthenticatedUserResolver.resolve(principal);
         noteService.bulkDeleteNotes(user, req);
         return ResponseEntity.ok(ApiResponse.noContent());
+    }
+
+    private User resolveSseUser(HttpServletRequest request) {
+        String accessToken = request.getParameter("accessToken");
+        if (accessToken == null || accessToken.isBlank()) {
+            String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+            if (authorization != null && authorization.startsWith("Bearer ")) {
+                accessToken = authorization.substring(7);
+            }
+        }
+
+        if (accessToken == null
+                || accessToken.isBlank()
+                || !jwtTokenProvider.validateAccessToken(accessToken)) {
+            throw ArtlogException.unauthorized("인증이 필요합니다.");
+        }
+
+        Long userId = jwtTokenProvider.getUserId(accessToken);
+        return userRepository.findByIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> ArtlogException.unauthorized("인증이 필요합니다."));
     }
 }

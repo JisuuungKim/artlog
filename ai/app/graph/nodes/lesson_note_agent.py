@@ -36,8 +36,12 @@ def _get_llm() -> ChatOpenAI:
     if _llm is None:
         settings = get_settings()
         if settings.openai_api_key:
-            os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
-        _llm = ChatOpenAI(model="gpt-5.4-mini", temperature=0)
+            os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+        _llm = ChatOpenAI(
+            model="gpt-5.4-mini",
+            temperature=0,
+            api_key=settings.openai_api_key or None,
+        )
     return _llm
 
 # =====================================================================
@@ -212,12 +216,7 @@ def generate_lesson_note_node(state: AgentState) -> dict[str, Any]:
         )
     except Exception as e:
         logger.error("[generate_lesson_note_node] 실패: %s", e)
-        empty = LessonNoteResponse(key_feedback=[], practice_guide=[], next_assignment=[], feedback_card=[], lyrics_feedback=[])
-        return {
-            "lesson_note": empty,
-            "retry_count": retry_count + 1,
-            "needs_regeneration": False,
-        }
+        raise RuntimeError("레슨노트 생성 LLM 호출에 실패했습니다.") from e
 
     return {
         "lesson_note": lesson_note,

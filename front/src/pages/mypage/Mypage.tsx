@@ -84,7 +84,7 @@ export default function Mypage() {
   const { data: user } = useUser();
 
   const remainingCount = user?.remainingCount ?? 0;
-  const renewalDate = toRenewalDate(user?.lastResetDate as string | null | undefined);
+  const renewalDate = toRenewalDate(user?.lastResetDate);
   const userName = user?.name ?? '';
 
   const managementItems: readonly MypageSectionItem[] = [

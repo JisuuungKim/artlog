@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Optional;
 
 @Slf4j
@@ -20,8 +21,8 @@ public class LessonNoteJobQueueService {
         stringRedisTemplate.opsForList().leftPush(QUEUE_KEY, String.valueOf(noteId));
     }
 
-    public Optional<Long> poll() {
-        String value = stringRedisTemplate.opsForList().rightPop(QUEUE_KEY);
+    public Optional<Long> blockingPoll(Duration timeout) {
+        String value = stringRedisTemplate.opsForList().rightPop(QUEUE_KEY, timeout);
         if (value == null || value.isBlank()) {
             return Optional.empty();
         }

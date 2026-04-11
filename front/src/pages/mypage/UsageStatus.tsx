@@ -40,7 +40,7 @@ export default function UsageStatus() {
 
   const remainingCount = user?.remainingCount ?? 0;
   const monthlyUsage = `${remainingCount}/${TOTAL_COUNT}회`;
-  const renewalDate = toRenewalDate(user?.lastResetDate as string | null | undefined);
+  const renewalDate = toRenewalDate(user?.lastResetDate);
 
   const handleBack = () => {
     navigate('/?tab=mypage');

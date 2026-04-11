@@ -13,6 +13,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from app.core.config import get_settings
 from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,12 @@ def _get_llm() -> ChatOpenAI:
     """첫 호출 시에만 LLM을 생성합니다 (lazy init)."""
     global _llm
     if _llm is None:
-        _llm = ChatOpenAI(model="gpt-4o", temperature=0)
+        settings = get_settings()
+        _llm = ChatOpenAI(
+            model="gpt-4o",
+            temperature=0,
+            api_key=settings.openai_api_key or None,
+        )
     return _llm
 
 

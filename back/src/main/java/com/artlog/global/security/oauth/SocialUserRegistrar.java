@@ -35,6 +35,7 @@ public class SocialUserRegistrar {
                             .provider(profile.provider())
                             .email(profile.email())
                             .name(profile.name())
+                            .remainingCount(User.MONTHLY_LESSON_NOTE_LIMIT)
                             .lastResetDate(OffsetDateTime.now())
                             .build());
                     categoryFolderPolicyService.ensureDefaultFolders(newUser);

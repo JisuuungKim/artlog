@@ -1,29 +1,60 @@
 package com.artlog.domain.note.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
-public class LessonNoteWorker {
+public class LessonNoteWorker implements SmartLifecycle {
 
     private final LessonNoteJobQueueService lessonNoteJobQueueService;
     private final LessonNoteProcessingService lessonNoteProcessingService;
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "lesson-note-worker");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private volatile boolean running = false;
 
-    @Value("${app.ai.queue.batch-size:3}")
-    private int batchSize;
+    @Override
+    public void start() {
+        if (running) {
+            return;
+        }
 
-    @Scheduled(fixedDelayString = "${app.ai.queue.poll-delay-ms:1000}")
-    public void processQueuedJobs() {
-        for (int i = 0; i < batchSize; i++) {
-            java.util.Optional<Long> noteId = lessonNoteJobQueueService.poll();
-            if (noteId.isEmpty()) {
-                return;
+        running = true;
+        executorService.submit(this::processQueuedJobs);
+    }
+
+    @Override
+    public void stop() {
+        running = false;
+        executorService.shutdownNow();
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    private void processQueuedJobs() {
+        while (running && !Thread.currentThread().isInterrupted()) {
+            try {
+                lessonNoteJobQueueService
+                        .blockingPoll(Duration.ofSeconds(30))
+                        .ifPresent(lessonNoteProcessingService::process);
+            } catch (Exception exception) {
+                if (running) {
+                    log.error("Lesson note worker failed.", exception);
+                }
             }
-
-            lessonNoteProcessingService.process(noteId.get());
         }
     }
 }

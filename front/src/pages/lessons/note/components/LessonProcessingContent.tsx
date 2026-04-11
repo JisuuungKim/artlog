@@ -1,57 +1,56 @@
 import { Button } from '@/components/button';
 
 interface LessonProcessingContentProps {
-  remainingMinutes?: number;
+  progress?: number;
+  message?: string;
   onCancel?: () => void;
   isCancelling?: boolean;
   onSetupPush?: () => void;
 }
 
-function ProgressBar({ progress = 0.4 }: { progress?: number }) {
+function ProgressBar({ progress = 5 }: { progress?: number }) {
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+
   return (
     <div className="h-[10px] w-full overflow-hidden rounded-full bg-greyscale-disabled-200">
       <div
         className="h-full rounded-full bg-primary-500"
-        style={{ width: `${Math.min(Math.max(progress, 0), 1) * 100}%` }}
+        style={{ width: `${clampedProgress}%` }}
       />
     </div>
   );
 }
 
 export default function LessonProcessingContent({
-  remainingMinutes = 7,
+  progress = 5,
+  message = '레슨노트를 준비하고 있어요.',
   onCancel,
   isCancelling = false,
   onSetupPush,
 }: LessonProcessingContentProps) {
   return (
-    <div className="flex min-h-[calc(100vh-280px)] flex-col px-5 pb-5 pt-[148px]">
-      <div className="flex flex-1 flex-col items-center">
+    <div className="flex flex-1 flex-col px-5 pb-5">
+      <div className="flex flex-1 flex-col justify-center items-center">
         <div className="w-full max-w-[303px] space-y-10 text-center">
           <div className="space-y-2">
             <p className="text-subtitle1 text-greyscale-text-title-800">
-              <span className="text-primary-500">레슨 내용 받아쓰기</span> 중...
+              {message}
             </p>
             <p className="text-body2 text-greyscale-neutral-600">
-              네트워크가 끊기면 분석이 취소될 수 있어요.
+              완성되면 바로 확인할 수 있어요.
             </p>
           </div>
 
           <div className="space-y-3">
-            <ProgressBar />
-            <p className="text-label">
-              <span className="text-greyscale-text-disabled-500">약 </span>
-              <span className="text-primary-400">{remainingMinutes}분</span>
-              <span className="text-greyscale-text-disabled-500">
-                {' '}
-                남았어요!
-              </span>
+            <ProgressBar progress={progress} />
+            <p className="text-label text-primary-400">
+              {Math.max(0, Math.min(100, progress))}%
             </p>
           </div>
         </div>
       </div>
 
-      <div className="space-y-8 pb-4 pt-10">
+      <div className="space-y-8 pb-4">
         <div className="flex justify-center">
           <button
             type="button"

@@ -61,9 +61,6 @@ app:
     connect-timeout-ms: ${AI_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${AI_READ_TIMEOUT_MS:1800000}
     max-attempts: ${AI_MAX_ATTEMPTS:2}
-    queue:
-      poll-delay-ms: ${AI_QUEUE_POLL_DELAY_MS:1000}
-      batch-size: ${AI_QUEUE_BATCH_SIZE:3}
   storage:
     upload-dir: ${APP_UPLOAD_DIR:/uploads}
 

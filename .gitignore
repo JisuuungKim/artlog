@@ -21,3 +21,6 @@ logs/
 *.m4a
 *.mp3
 *.wav
+
+# README
+MY_README.md

@@ -1,19 +1,31 @@
-import { useLocation, Outlet } from 'react-router-dom';
+import { useLocation, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import BottomNav from './components/common/BottomNav';
 import LyricsButton from './components/fab/LyricsButton';
 import { FabButton } from './components/fab';
+import { api, type ApiResponse } from './lib/api';
+import type { LessonNoteDetail } from './hooks/useLessonNote';
 
 function App() {
   const location = useLocation();
-
-  // 디버그: 현재 경로 출력
-  console.log('Current pathname:', location.pathname);
+  const navigate = useNavigate();
+  const lessonDetailMatch = location.pathname.match(/^\/lessons\/(\d+)$/);
+  const lessonNoteId = lessonDetailMatch?.[1];
+  const { data: lessonNote } = useQuery({
+    queryKey: ['lesson-note', lessonNoteId],
+    enabled: Boolean(lessonNoteId),
+    queryFn: async () => {
+      const response = await api.get<ApiResponse<LessonNoteDetail>>(
+        `/api/v1/notes/${lessonNoteId}`
+      );
+      return response.data.data;
+    },
+  });
 
   // '/' 경로일 때만 BottomNav 표시
   const showBottomNav = location.pathname === '/';
 
-  // '/lessons/:id' 경로일 때만 LyricsButton 표시 (하위 경로 제외)
-  const showLyricsButton = /^\/lessons\/[^/]+$/.test(location.pathname);
+  const showLyricsButton = lessonNote?.status === 'COMPLETED';
 
   // '/' 또는 '/?tab=home' 경로일 때만 FabButton 표시
   const showFabButton =
@@ -31,7 +43,11 @@ function App() {
 
       {/* FAB */}
       <div className="relative">
-        {showLyricsButton && <LyricsButton />}
+        {showLyricsButton && (
+          <LyricsButton
+            onClick={() => navigate(`/lessons/${lessonNoteId}/lyrics`)}
+          />
+        )}
         {showFabButton && <FabButton />}
       </div>
     </div>

@@ -28,6 +28,8 @@ import java.util.List;
 @Builder
 public class User {
 
+    public static final int MONTHLY_LESSON_NOTE_LIMIT = 4;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -46,13 +48,14 @@ public class User {
 
     @Column(name = "remaining_count")
     @Builder.Default
-    private Integer remainingCount = 0;
+    private Integer remainingCount = MONTHLY_LESSON_NOTE_LIMIT;
 
     /**
      * 이용권 초기화 기준일
      */
     @Column(name = "last_reset_date", columnDefinition = "TIMESTAMP WITH TIME ZONE")
-    private OffsetDateTime lastResetDate;
+    @Builder.Default
+    private OffsetDateTime lastResetDate = OffsetDateTime.now();
 
     @Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE",
             updatable = false)
@@ -134,6 +137,20 @@ public class User {
         if (this.remainingCount > 0) {
             this.remainingCount--;
         }
+    }
+
+    public void refreshMonthlyLessonNoteQuota(OffsetDateTime now) {
+        if (this.remainingCount == null
+                || this.lastResetDate == null
+                || !this.lastResetDate.plusMonths(1).isAfter(now)) {
+            this.remainingCount = MONTHLY_LESSON_NOTE_LIMIT;
+            this.lastResetDate = now;
+            this.updatedAt = now;
+        }
+    }
+
+    public boolean hasRemainingLessonNoteQuota() {
+        return this.remainingCount != null && this.remainingCount > 0;
     }
 
     public void upsertSocialProfile(String provider, String socialId, String email, String name) {

@@ -32,3 +32,4 @@ export { default as MusicPrimary600Icon } from './music_primary_600.svg?react';
 export { default as GoogleColorIcon } from './google_color.svg?react';
 export { default as KakaoColorIcon } from './kakao_color.svg?react';
 export { default as AppleGreyscale800Icon } from './apple_greyscale_800.svg?react';
+export { default as LessonEmptyGreyscale500Icon } from './lesson_empty_greyscale_500.svg?react';

@@ -42,6 +42,8 @@ services:
         condition: service_started
     env_file:
       - ./back/.env
+    environment:
+      AI_BASE_URL: http://ai:8001
     volumes:
       - ./back:/app
       - ./uploads:/uploads

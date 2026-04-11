@@ -53,6 +53,7 @@ public class NoteService {
     private final UserRepository userRepository;
     private final UserSongRepository userSongRepository;
     private final LessonNoteJobQueueService lessonNoteJobQueueService;
+    private final LessonNoteEventService lessonNoteEventService;
 
     @Value("${app.storage.upload-dir}")
     private String uploadDir;
@@ -120,6 +121,10 @@ public class NoteService {
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
         Category category = categoryFolderPolicyService.resolveUserInterestCategory(user, req.categoryId());
+        user.refreshMonthlyLessonNoteQuota(OffsetDateTime.now());
+        if (!user.hasRemainingLessonNoteQuota()) {
+            throw ArtlogException.badRequest("이번 달 레슨노트 생성 횟수를 모두 사용했습니다.");
+        }
 
         Note note = Note.builder()
                 .user(user)
@@ -138,6 +143,7 @@ public class NoteService {
         attachSongs(note, user, category, req.songTitles());
 
         Note saved = noteRepository.save(note);
+        user.decreaseRemainingCount();
         triggerLessonProcessingAfterCommit(saved.getId());
         return CreatedLessonNote.from(saved);
     }
@@ -257,6 +263,7 @@ public class NoteService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                lessonNoteEventService.update(noteId, NoteStatus.PROCESSING, "queued");
                 lessonNoteJobQueueService.enqueue(noteId);
             }
         });

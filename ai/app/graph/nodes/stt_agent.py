@@ -16,6 +16,7 @@ from typing import Any
 from pydub import AudioSegment
 import openai
 
+from app.core.config import get_settings
 from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -101,7 +102,8 @@ def stt_node(state: AgentState) -> dict[str, Any]:
     audio_path: str = state["audio_path"]
     logger.info("[stt_node] STT 시작: %s", audio_path)
 
-    client = openai.OpenAI()
+    settings = get_settings()
+    client = openai.OpenAI(api_key=settings.openai_api_key or None)
 
     # ── 파일 로드 ────────────────────────────────────────────────────
     try:
@@ -149,8 +151,7 @@ def stt_node(state: AgentState) -> dict[str, Any]:
             )
         except openai.OpenAIError as e:
             logger.error("[stt_node] 청크 %d API 실패: %s", i + 1, e)
-            errors.append(f"청크 {i + 1} API 오류: {e}")
-            continue
+            raise RuntimeError(f"STT API 호출에 실패했습니다: 청크 {i + 1}") from e
 
         # 세그먼트 정규화 + 오프셋 보정
         raw_segs = getattr(resp, "segments", None)
@@ -170,4 +171,6 @@ def stt_node(state: AgentState) -> dict[str, Any]:
         logger.info("[stt_node] 청크 %d/%d 완료 (%d줄)", i + 1, chunk_count, len(chunk_lines))
 
     logger.info("[stt_node] STT 완료 — 총 %d개 청크", len(transcripts))
+    if not transcripts:
+        raise RuntimeError("STT 결과가 비어 있습니다.")
     return {"transcripts": transcripts, **({"errors": errors} if errors else {})}

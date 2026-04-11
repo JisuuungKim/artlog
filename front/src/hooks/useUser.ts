@@ -8,6 +8,7 @@ export type MeResponse = {
   email: string | null;
   name: string | null;
   remainingCount: number;
+  lastResetDate: string | null;
   hideIphoneUploadGuide: boolean;
   hideMobileDataGuide: boolean;
 };

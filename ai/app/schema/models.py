@@ -21,6 +21,8 @@ class LessonNoteRequest(BaseModel):
     session_id: str = Field(..., description="세션 ID — LangGraph thread_id로 사용")
     user_id: int = Field(..., description="사용자 ID")
     note_id: int = Field(..., description="레슨노트 ID")
+    category_id: Optional[int] = Field(default=None, description="레슨노트 카테고리 ID")
+    folder_id: Optional[int] = Field(default=None, description="레슨노트 폴더 ID")
     audio_path: str = Field(..., description="컨테이너 내부 오디오 파일 절대 경로")
     song_title: List[str] = Field(default=[], description="레슨에서 다룬 곡 제목 목록")
     keywords: List[KeywordItem] = Field(default=[], description="피드백 카드 분류용 키워드 목록")

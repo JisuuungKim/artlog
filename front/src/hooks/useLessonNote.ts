@@ -22,6 +22,9 @@ export type LessonProcessingStage =
   | 'feedback_analysis'
   | 'lesson_note'
   | 'review_lesson_note'
+  | 'extract_improvement'
+  | 'embed_note'
+  | 'growth_report'
   | 'completed'
   | 'failed';
 
@@ -65,6 +68,7 @@ export type LessonNoteDetail = {
   nextAssignment: LessonCardItem[];
   feedbackGroups: LessonFeedbackGroup[];
   lyricsFeedbacks: LessonLyricsFeedback[];
+  growthReport: string | null;
   processingStage?: LessonProcessingStage;
   processingProgress?: number;
   processingMessage?: string;

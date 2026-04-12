@@ -83,6 +83,10 @@ public class LessonNoteProcessingService {
                 return new AiJobPayload(
                         note.getId(),
                         note.getUser().getId(),
+                        note.getFolder() != null && note.getFolder().getCategory() != null
+                                ? note.getFolder().getCategory().getId()
+                                : null,
+                        note.getFolder() != null ? note.getFolder().getId() : null,
                         note.getRecordingUrl(),
                         note.getNoteSongTags().stream().map(tag -> tag.getUserSong().getTitle()).toList()
                 );
@@ -154,17 +158,18 @@ public class LessonNoteProcessingService {
     }
 
     private LessonNoteGenerateResponse requestLessonNote(AiJobPayload payload) {
-        Map<String, Object> requestBody = Map.of(
-                "session_id", "note-" + payload.noteId(),
-                "user_id", payload.userId(),
-                "note_id", payload.noteId(),
-                "audio_path", payload.audioPath(),
-                "song_title", payload.songTitles(),
-                "keywords", DEFAULT_KEYWORDS.stream().map(keyword -> Map.of(
-                        "feedback_keyword_id", keyword.feedbackKeywordId(),
-                        "feedback_keyword_name", keyword.feedbackKeywordName()
-                )).toList()
-        );
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("session_id", "note-" + payload.noteId());
+        requestBody.put("user_id", payload.userId());
+        requestBody.put("note_id", payload.noteId());
+        requestBody.put("category_id", payload.categoryId());
+        requestBody.put("folder_id", payload.folderId());
+        requestBody.put("audio_path", payload.audioPath());
+        requestBody.put("song_title", payload.songTitles());
+        requestBody.put("keywords", DEFAULT_KEYWORDS.stream().map(keyword -> Map.of(
+                "feedback_keyword_id", keyword.feedbackKeywordId(),
+                "feedback_keyword_name", keyword.feedbackKeywordName()
+        )).toList());
 
         try {
             lessonNoteEventService.update(payload.noteId(), NoteStatus.PROCESSING, "stt");
@@ -430,6 +435,8 @@ public class LessonNoteProcessingService {
     private record AiJobPayload(
             Long noteId,
             Long userId,
+            Long categoryId,
+            Long folderId,
             String audioPath,
             List<String> songTitles
     ) {

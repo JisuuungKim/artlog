@@ -3,7 +3,7 @@ LangGraph 워크플로우 정의.
 
 현재 파이프라인:
   stt → correction → feedback_analysis → lesson_note → review_lesson_note
-  → embed_note → growth_report
+  → extract_improvement → embed_note → growth_report
 
 review_lesson_note 가 섹션 중복이 크다고 판단하면
 lesson_note 노드로 한 번 더 되돌려 재생성합니다.
@@ -31,6 +31,7 @@ from app.graph.nodes.lesson_note_agent import (
     route_after_review,
 )
 from app.graph.nodes.growth_report_agent import (
+    aextract_improvement_node,
     aembed_note_node,
     agenerate_growth_report_node,
 )
@@ -51,9 +52,10 @@ def _build_graph() -> StateGraph:
     builder.add_node("correction", correction_node) # 2. 텍스트 보정
     builder.add_node("feedback_analysis", feedback_analysis_node) # 3. 피드백 심층 분석
     builder.add_node("lesson_note", generate_lesson_note_node) # 4. 레슨노트 생성
-    builder.add_node("review_lesson_note", review_lesson_note_node) # 5. 중복 검토
-    builder.add_node("embed_note", aembed_note_node)              # 6. 임베딩 저장
-    builder.add_node("growth_report", agenerate_growth_report_node) # 7. 성장 리포트
+    builder.add_node("review_lesson_note", review_lesson_note_node)    # 5. 중복 검토
+    builder.add_node("extract_improvement", aextract_improvement_node) # 6. 선생님 칭찬 추출
+    builder.add_node("embed_note", aembed_note_node)                   # 7. 임베딩 저장
+    builder.add_node("growth_report", agenerate_growth_report_node)    # 8. 성장 리포트
 
     builder.set_entry_point("stt")
     builder.add_edge("stt", "correction")
@@ -65,9 +67,10 @@ def _build_graph() -> StateGraph:
         route_after_review,
         {
             "regenerate": "lesson_note",
-            "end": "embed_note",
+            "end": "extract_improvement",
         },
     )
+    builder.add_edge("extract_improvement", "embed_note")
     builder.add_edge("embed_note", "growth_report")
     builder.add_edge("growth_report", END)
 

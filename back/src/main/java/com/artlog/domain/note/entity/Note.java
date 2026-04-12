@@ -112,6 +112,7 @@ public class Note extends BaseTimeEntity {
         this.nextAssignment = new ArrayList<>();
         this.feedbackKeywords.clear();
         this.lyricsFeedbacks.clear();
+        this.growthReport = null;
         this.status = NoteStatus.PROCESSING;
     }
 

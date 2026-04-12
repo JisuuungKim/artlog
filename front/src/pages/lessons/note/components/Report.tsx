@@ -20,6 +20,7 @@ type ReportProps = {
   keyFeedback?: LessonCardItem[];
   practiceGuide?: LessonCardItem[];
   nextAssignment?: LessonCardItem[];
+  growthReport?: string | null;
 };
 
 function toCardItems(items: LessonCardItem[]): CardListItemData[] {
@@ -34,18 +35,29 @@ export default function Report({
   keyFeedback = [],
   practiceGuide = [],
   nextAssignment = [],
+  growthReport,
 }: ReportProps) {
   const [activeTab, setActiveTab] = useState('feedback');
   const feedbackSummary = toCardItems(keyFeedback);
   const guideSummary = toCardItems(practiceGuide);
   const nextSteps = toCardItems(nextAssignment);
+  const growthReportText = growthReport?.trim();
+  const growthReportItems: CardListItemData[] = growthReportText
+    ? [
+        {
+          id: 'growth-report',
+          title: '이번 성장 리포트',
+          content: growthReportText,
+        },
+      ]
+    : growthDataEmpty;
 
   return (
     <div className="py-10 px-5 flex flex-col gap-15">
       <div>
         <p className="text-subtitle3 mb-4">성장 리포트</p>
         <CardList
-          items={growthDataEmpty}
+          items={growthReportItems}
           showTitle
         />
       </div>

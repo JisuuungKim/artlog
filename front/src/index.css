@@ -208,6 +208,7 @@
 @layer base {
   html,
   body {
+    background: var(--color-greyscale-bg-100);
     /* Fix viewport height for mobile webview */
     height: 100%;
     /* Prevent bounce effect */
@@ -235,6 +236,7 @@
   }
 
   #root {
+    background: var(--color-greyscale-bg-100);
     height: 100%;
   }
 }

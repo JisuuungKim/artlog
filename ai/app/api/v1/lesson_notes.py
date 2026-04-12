@@ -16,7 +16,8 @@ NEXT_STAGE_BY_COMPLETED_STAGE = {
     "correction": "feedback_analysis",
     "feedback_analysis": "lesson_note",
     "lesson_note": "review_lesson_note",
-    "review_lesson_note": "embed_note",
+    "review_lesson_note": "extract_improvement",
+    "extract_improvement": "embed_note",
     "embed_note": "growth_report",
 }
 
@@ -26,6 +27,8 @@ def build_initial_state(body: LessonNoteRequest) -> dict:
         "session_id": body.session_id,
         "user_id": body.user_id,
         "note_id": body.note_id,
+        "category_id": body.category_id,
+        "folder_id": body.folder_id,
         "audio_path": body.audio_path,
         "song_title": body.song_title,
         "keywords": [kw.model_dump() for kw in body.keywords],
@@ -36,6 +39,7 @@ def build_initial_state(body: LessonNoteRequest) -> dict:
         "errors": [],
         "retry_count": 0,
         "growth_report": None,
+        "improvements_noted": [],
     }
 
 
@@ -145,7 +149,7 @@ async def stream_lesson_note_generation(
                     ):
                         next_stage = "lesson_note"
                     elif node_name == "review_lesson_note" and not state.get("needs_regeneration"):
-                        next_stage = "embed_note"
+                        next_stage = "extract_improvement"
 
                     if next_stage and next_stage != last_emitted_stage:
                         yield progress(next_stage)

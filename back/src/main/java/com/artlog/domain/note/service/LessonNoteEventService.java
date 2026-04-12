@@ -29,9 +29,10 @@ public class LessonNoteEventService {
             Map.entry("correction",        new ProgressStep(30,  "레슨 내용을 정리하고 있어요.")),
             Map.entry("feedback_analysis", new ProgressStep(50,  "선생님의 피드백을 살펴보고 있어요.")),
             Map.entry("lesson_note",       new ProgressStep(65,  "연습에 도움이 되도록 노트를 만들고 있어요.")),
-            Map.entry("review_lesson_note",new ProgressStep(80,  "노트 내용을 한 번 더 확인하고 있어요.")),
-            Map.entry("embed_note",        new ProgressStep(88,  "레슨 기록을 저장하고 있어요.")),
-            Map.entry("growth_report",     new ProgressStep(95,  "성장 리포트를 작성하고 있어요.")),
+            Map.entry("review_lesson_note",  new ProgressStep(80, "노트 내용을 한 번 더 확인하고 있어요.")),
+            Map.entry("extract_improvement", new ProgressStep(85, "선생님의 칭찬을 찾고 있어요.")),
+            Map.entry("embed_note",          new ProgressStep(90, "레슨 기록을 저장하고 있어요.")),
+            Map.entry("growth_report",       new ProgressStep(95, "성장 리포트를 작성하고 있어요.")),
             Map.entry("completed",         new ProgressStep(100, "레슨노트가 준비됐어요.")),
             Map.entry("failed",            new ProgressStep(100, "레슨노트 생성에 실패했어요."))
     );

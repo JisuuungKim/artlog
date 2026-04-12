@@ -54,6 +54,7 @@ public class NoteService {
     private final UserSongRepository userSongRepository;
     private final LessonNoteJobQueueService lessonNoteJobQueueService;
     private final LessonNoteEventService lessonNoteEventService;
+    private final LessonNoteEmbeddingCleanupService lessonNoteEmbeddingCleanupService;
 
     @Value("${app.storage.upload-dir}")
     private String uploadDir;
@@ -174,6 +175,7 @@ public class NoteService {
         if (note.getNoteType() == NoteType.LESSON && note.getStatus() == NoteStatus.PROCESSING) {
             note.getUser().restoreLessonNoteQuota(OffsetDateTime.now());
         }
+        lessonNoteEmbeddingCleanupService.deleteByNoteId(user.getId(), note.getId());
         noteRepository.delete(note);
     }
 
@@ -207,8 +209,12 @@ public class NoteService {
     /** 선택 노트 일괄 삭제 */
     @Transactional
     public void bulkDeleteNotes(User user, BulkDeleteRequest req) {
-        noteRepository.findByIdInAndUserId(req.noteIds(), user.getId())
-                .forEach(note -> validateNoteCategoryAccess(user, note));
+        List<Note> notes = noteRepository.findByIdInAndUserId(req.noteIds(), user.getId());
+        notes.forEach(note -> validateNoteCategoryAccess(user, note));
+        lessonNoteEmbeddingCleanupService.deleteByNoteIds(
+                user.getId(),
+                notes.stream().map(Note::getId).toList()
+        );
         noteRepository.bulkDeleteNotes(req.noteIds(), user.getId());
     }
 

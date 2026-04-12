@@ -1,7 +1,5 @@
 import React from 'react';
-
-const lyricsIcon =
-  'http://localhost:3845/assets/5f85c358115243d589e61ecf574b353ed379fbcd.svg';
+import { LyricsGreyscaleBg50Icon } from '@assets/icons';
 
 interface LyricsButtonProps {
   onClick?: () => void;
@@ -13,14 +11,14 @@ const LyricsButton: React.FC<LyricsButtonProps> = ({
   className = '',
 }) => {
   return (
-    <div className="absolute z-50 right-5 bottom-12">
+    <div className="absolute z-50 right-5 bottom-12-safe">
       <button
         className={`bg-primary-500 flex gap-1 items-center px-3.5 py-3 rounded-full ${className}`}
         onClick={onClick}
       >
         {/* 아이콘 */}
         <div className="w-4.5 h-4.5 flex-shrink-0">
-          <img src={lyricsIcon} alt="가사 아이콘" className="w-full h-full" />
+          <LyricsGreyscaleBg50Icon aria-hidden className="h-full w-full" />
         </div>
 
         {/* 텍스트 */}

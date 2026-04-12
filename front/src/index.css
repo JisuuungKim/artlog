@@ -167,6 +167,35 @@
 }
 
 @layer utilities {
+  .safe-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pb-bottom-nav-safe {
+    padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pb-action-safe {
+    padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-12-safe {
+    bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-22-safe {
+    bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .h-bottom-nav-safe {
+    height: calc(3rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   .scrollbar-hide {
     scrollbar-width: none;
     -ms-overflow-style: none;

@@ -55,7 +55,7 @@ export default function NoteSelectionBottomBar({
           textClassName="text-point-600"
         />
       </div>
-      <div className="h-[26px]" />
+      <div className="pb-action-safe" />
     </div>
   );
 }

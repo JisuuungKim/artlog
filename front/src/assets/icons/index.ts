@@ -33,3 +33,4 @@ export { default as GoogleColorIcon } from './google_color.svg?react';
 export { default as KakaoColorIcon } from './kakao_color.svg?react';
 export { default as AppleGreyscale800Icon } from './apple_greyscale_800.svg?react';
 export { default as LessonEmptyGreyscale500Icon } from './lesson_empty_greyscale_500.svg?react';
+export { default as LyricsGreyscaleBg50Icon } from './lyrics_greyscale_bg_50.svg?react';

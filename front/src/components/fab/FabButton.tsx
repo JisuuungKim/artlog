@@ -46,7 +46,7 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
         <div className="fixed inset-0 bg-alpha-dimmed z-40" onClick={toggle} />
       )}
 
-      <div className="absolute right-5 bottom-22 flex flex-col items-end z-50">
+      <div className="absolute right-5 bottom-22-safe flex flex-col items-end z-50">
         {/* Content */}
         <div
           className={`bg-white p-5 mb-3 rounded-2xl transition-all duration-200 ${

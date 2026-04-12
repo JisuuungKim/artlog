@@ -53,7 +53,7 @@ export default function BottomNav({}: BottomNavProps) {
   const currentTab = searchParams.get('tab') || 'home';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#f9f9fb] border-t border-[#ebebef] h-12 flex items-center justify-center gap-20 px-15 w-full max-w-[480px] mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#f9f9fb] border-t border-[#ebebef] h-bottom-nav-safe flex items-start justify-center gap-20 px-15 w-full max-w-[480px] mx-auto">
       {navItems.map(item => {
         const Icon = item.icon;
         const isActive = currentTab === item.tab;

@@ -45,7 +45,7 @@ function InterestOptionButton({
       className={`flex w-full items-center gap-2 rounded-2xl border px-4 py-[13px] text-left transition-colors ${
         selected
           ? 'border-primary-300 bg-primary-50 text-primary-600'
-          : 'border-greyscale-border-300 bg-greyscale-bg-50 text-greyscale-text-body-700'
+          : 'border-greyscale-border-300 bg-greyscale-bg-100 text-greyscale-text-body-700'
       }`}
     >
       <span className="flex-1 text-subtitle3">{label}</span>
@@ -128,8 +128,8 @@ export default function Interests() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-greyscale-bg-50">
-      <div className="shrink-0 pt-[10px]">
+    <div className="flex min-h-[100dvh] flex-col">
+      <div className="shrink-0">
         <AppBar
           variant="icons-left-only"
           leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
@@ -176,7 +176,7 @@ export default function Interests() {
         </section>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[480px] bg-greyscale-bg-50 px-5 pb-[26px] pt-5">
+      <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[480px] px-5 pb-action-safe pt-5">
         <Button
           hierarchy="primary"
           size="large"

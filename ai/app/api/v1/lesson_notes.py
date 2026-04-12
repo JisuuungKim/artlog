@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Request, HTTPException
@@ -7,6 +9,7 @@ from app.graph.nodes.lesson_note_agent import MAX_REGEN_ATTEMPTS
 from app.schema.models import LessonNoteRequest, LessonNoteResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 NEXT_STAGE_BY_COMPLETED_STAGE = {
     "stt": "correction",
@@ -151,7 +154,17 @@ async def stream_lesson_note_generation(
                     "lesson_note": to_note_dict(lesson_note),
                 },
             )
+        except asyncio.CancelledError:
+            logger.info(
+                "Lesson note stream cancelled before completion. session_id=%s",
+                body.session_id,
+            )
+            return
         except Exception as exc:
             yield format_sse("error", {"message": str(exc)})
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

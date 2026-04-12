@@ -64,7 +64,11 @@ export default function Terms() {
 
   return (
     <div className="flex flex-col">
-      <AppBar variant="icons-left-only" leftIcon={<BackGreyscale800Icon />} />
+      <AppBar
+        variant="icons-left-only"
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
+      />
       <p className="text-h1 text-greyscale-text-title-900 px-5 py-8">
         아트로그 사용을 위해
         <br />

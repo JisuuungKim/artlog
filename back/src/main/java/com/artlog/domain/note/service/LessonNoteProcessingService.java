@@ -5,6 +5,7 @@ import com.artlog.domain.note.entity.FeedbackKeyword;
 import com.artlog.domain.note.entity.LyricsFeedback;
 import com.artlog.domain.note.entity.Note;
 import com.artlog.domain.note.entity.NoteStatus;
+import com.artlog.domain.note.entity.NoteType;
 import com.artlog.domain.note.repository.NoteRepository;
 import com.artlog.global.type.TitleContentItem;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -65,8 +67,18 @@ public class LessonNoteProcessingService {
     public void process(Long noteId) {
         try {
             AiJobPayload payload = transactionTemplate.execute(status -> {
-                Note note = noteRepository.findById(noteId)
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "노트를 찾을 수 없습니다."));
+                Note note = noteRepository.findById(noteId).orElse(null);
+                if (note == null) {
+                    return null;
+                }
+                if (note.getStatus() != NoteStatus.PROCESSING) {
+                    log.info(
+                            "Skip lesson note AI processing because note is not processing. noteId={} status={}",
+                            note.getId(),
+                            note.getStatus()
+                    );
+                    return null;
+                }
 
                 return new AiJobPayload(
                         note.getId(),
@@ -76,7 +88,7 @@ public class LessonNoteProcessingService {
             });
 
             if (payload == null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "노트를 찾을 수 없습니다.");
+                return;
             }
 
             LessonNoteGenerateResponse response = requestLessonNoteWithRetry(payload);
@@ -92,6 +104,24 @@ public class LessonNoteProcessingService {
             transactionTemplate.executeWithoutResult(status -> markFailed(noteId));
             lessonNoteEventService.complete(noteId, NoteStatus.FAILED);
         }
+    }
+
+    public void failInterruptedProcessingNotes() {
+        List<Long> noteIds = transactionTemplate.execute(status -> noteRepository
+                .findByNoteTypeAndStatus(NoteType.LESSON, NoteStatus.PROCESSING)
+                .stream()
+                .peek(Note::markFailed)
+                .map(Note::getId)
+                .toList());
+
+        if (noteIds == null || noteIds.isEmpty()) {
+            return;
+        }
+
+        log.warn("Marked interrupted lesson note jobs as failed. noteIds={}", noteIds);
+        noteIds.stream()
+                .filter(Objects::nonNull)
+                .forEach(noteId -> lessonNoteEventService.complete(noteId, NoteStatus.FAILED));
     }
 
     private LessonNoteGenerateResponse requestLessonNoteWithRetry(AiJobPayload payload) {
@@ -313,6 +343,7 @@ public class LessonNoteProcessingService {
 
             keyword.getFeedbackCards().add(FeedbackCard.builder()
                     .feedbackKeyword(keyword)
+                    .note(note)
                     .title(card.title())
                     .content(card.content())
                     .build());

@@ -20,6 +20,10 @@ public class FeedbackCard extends BaseTimeEntity {
     @JoinColumn(name = "feedback_keyword_id", nullable = false)
     private FeedbackKeyword feedbackKeyword;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "note_id", nullable = false)
+    private Note note;
+
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 

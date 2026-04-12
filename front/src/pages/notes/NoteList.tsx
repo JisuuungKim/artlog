@@ -388,17 +388,11 @@ export default function NoteList() {
         <>
           <AppBar
             variant="icons-left-right-single"
-            leftIcon={<BackGreyscale800Icon onClick={() => navigate(-1)} />}
-            rightIcon={
-              <EtcGreyscale800Icon
-                onClick={() =>
-                  handleEtcClick(
-                    currentEntityId,
-                    currentType,
-                    pageTitle
-                  )
-                }
-              />
+            leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+            leftIconClick={() => navigate(-1)}
+            rightIcon={<EtcGreyscale800Icon className="h-6 w-6" />}
+            rightIconClick={() =>
+              handleEtcClick(currentEntityId, currentType, pageTitle)
             }
           />
           <div className="p-5">

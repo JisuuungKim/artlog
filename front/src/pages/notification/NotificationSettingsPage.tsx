@@ -39,16 +39,8 @@ export default function NotificationSettingsPage() {
       <AppBar
         variant="title-left-back"
         title="푸시 알림 설정"
-        leftIcon={
-          <button
-            type="button"
-            aria-label="뒤로 가기"
-            onClick={() => navigate(-1)}
-            className="flex h-6 w-6 items-center justify-center"
-          >
-            <BackGreyscale800Icon className="h-6 w-6" />
-          </button>
-        }
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
       />
 
       <main className="px-5 pt-11">

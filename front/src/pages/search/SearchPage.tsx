@@ -70,16 +70,8 @@ export default function SearchPage() {
       <AppBar
         variant="category-left-back-search"
         title="보컬"
-        leftIcon={
-          <button
-            type="button"
-            aria-label="뒤로 가기"
-            onClick={() => navigate(-1)}
-            className="flex h-6 w-6 items-center justify-center"
-          >
-            <BackGreyscale800Icon className="h-6 w-6" />
-          </button>
-        }
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
       />
 
       <main className="px-5 py-6">

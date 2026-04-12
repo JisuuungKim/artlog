@@ -1,17 +1,22 @@
 import AppBar from '@/components/appBar';
 import LyricsCard from './components/LyricsCard';
 import { XGreyscale800Icon } from '@/assets/icons';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useLessonNote } from '@/hooks/useLessonNote';
 
 export default function LessonLyrics() {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data } = useLessonNote(id);
   const feedbacks = data?.lyricsFeedbacks ?? [];
 
   return (
     <div>
-      <AppBar variant="icons-left-only" leftIcon={<XGreyscale800Icon />} />
+      <AppBar
+        variant="icons-left-only"
+        leftIcon={<XGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
+      />
       <div className="p-5">
         <p className="text-h2 text-greyscale-text-title-900 mb-2">
           오늘 배운 가사

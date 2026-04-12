@@ -237,6 +237,7 @@ export function useDeleteLessonNote() {
       queryClient.invalidateQueries({ queryKey: ['song-notes'] });
       queryClient.invalidateQueries({ queryKey: ['recent-lesson-notes'] });
       queryClient.invalidateQueries({ queryKey: ['folders'] });
+      queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
     },
   });
 }

@@ -73,6 +73,31 @@ function CenteredHeader({
 
 const DUMMY_ICON = <PlaceholderDummyGreyscale700Icon className="h-6 w-6" />;
 
+function IconSlot({
+  icon,
+  onClick,
+  ariaLabel,
+}: {
+  icon: ReactNode;
+  onClick?: () => void;
+  ariaLabel: string;
+}) {
+  if (!onClick) {
+    return <>{icon}</>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-6 w-6 items-center justify-center"
+      aria-label={ariaLabel}
+    >
+      {icon}
+    </button>
+  );
+}
+
 export default function AppBar({
   variant,
   className = '',
@@ -82,7 +107,10 @@ export default function AppBar({
   leftIcon,
   rightIcon,
   rightSecondaryIcon,
-  onNotificationClick,
+  leftIconClick,
+  rightIconClick,
+  rightSecondaryIconClick,
+  notificationIconClick,
   searchValue,
   searchPlaceholder,
   hasNewNotifications = false,
@@ -97,22 +125,31 @@ export default function AppBar({
           onChevronClick={onCategoryChevronClick}
         />
         <div className="flex items-center gap-4">
-          {rightIcon || <SearchGreyscale800Icon className="h-6 w-6" />}
-          {rightSecondaryIcon || (
-            <CalendarGreyscale800Icon className="h-6 w-6" />
-          )}
-          <button
-            type="button"
-            onClick={onNotificationClick}
-            className="flex h-6 w-6 items-center justify-center"
-            aria-label="알림"
-          >
-            {hasNewNotifications ? (
-              <BellNewGreyscale800Icon className="h-6 w-6" />
-            ) : (
-              <BellGreyscale800Icon className="h-6 w-6" />
-            )}
-          </button>
+          <IconSlot
+            icon={rightIcon || <SearchGreyscale800Icon className="h-6 w-6" />}
+            onClick={rightIconClick}
+            ariaLabel="오른쪽 아이콘"
+          />
+          <IconSlot
+            icon={
+              rightSecondaryIcon || (
+                <CalendarGreyscale800Icon className="h-6 w-6" />
+              )
+            }
+            onClick={rightSecondaryIconClick}
+            ariaLabel="보조 오른쪽 아이콘"
+          />
+          <IconSlot
+            icon={
+              hasNewNotifications ? (
+                <BellNewGreyscale800Icon className="h-6 w-6" />
+              ) : (
+                <BellGreyscale800Icon className="h-6 w-6" />
+              )
+            }
+            onClick={notificationIconClick}
+            ariaLabel="알림"
+          />
         </div>
       </div>
     );
@@ -144,7 +181,13 @@ export default function AppBar({
     return (
       <div className={`w-full ${className}`}>
         <CenteredHeader
-          left={leftIcon || <BackGreyscale800Icon />}
+          left={
+            <IconSlot
+              icon={leftIcon || <BackGreyscale800Icon />}
+              onClick={leftIconClick}
+              ariaLabel="왼쪽 아이콘"
+            />
+          }
           title={
             <CategoryTitle
               title={title || ''}
@@ -161,7 +204,13 @@ export default function AppBar({
     return (
       <div className={`w-full ${className}`}>
         <CenteredHeader
-          left={leftIcon || <CloseGreyscale800Icon className="h-6 w-6" />}
+          left={
+            <IconSlot
+              icon={leftIcon || <CloseGreyscale800Icon className="h-6 w-6" />}
+              onClick={leftIconClick}
+              ariaLabel="왼쪽 아이콘"
+            />
+          }
           title={<Title>{title || '타이틀'}</Title>}
           right={<Chip>{chipLabel || '버튼'}</Chip>}
         />
@@ -174,9 +223,17 @@ export default function AppBar({
       <div
         className={`flex w-full items-center justify-between px-5 py-2 ${className}`}
       >
-        {leftIcon || DUMMY_ICON}
+        <IconSlot
+          icon={leftIcon || DUMMY_ICON}
+          onClick={leftIconClick}
+          ariaLabel="왼쪽 아이콘"
+        />
         <Title>{title || '타이틀'}</Title>
-        {rightIcon || DUMMY_ICON}
+        <IconSlot
+          icon={rightIcon || DUMMY_ICON}
+          onClick={rightIconClick}
+          ariaLabel="오른쪽 아이콘"
+        />
       </div>
     );
   }
@@ -185,7 +242,13 @@ export default function AppBar({
     return (
       <div className={`w-full ${className}`}>
         <CenteredHeader
-          left={leftIcon || <BackGreyscale800Icon className="h-6 w-6" />}
+          left={
+            <IconSlot
+              icon={leftIcon || <BackGreyscale800Icon className="h-6 w-6" />}
+              onClick={leftIconClick}
+              ariaLabel="왼쪽 아이콘"
+            />
+          }
           title={<Title>{title || '타이틀'}</Title>}
         />
       </div>
@@ -197,8 +260,16 @@ export default function AppBar({
       <div
         className={`flex w-full items-center justify-between px-5 py-[10px] ${className}`}
       >
-        {leftIcon || DUMMY_ICON}
-        {rightIcon || DUMMY_ICON}
+        <IconSlot
+          icon={leftIcon || DUMMY_ICON}
+          onClick={leftIconClick}
+          ariaLabel="왼쪽 아이콘"
+        />
+        <IconSlot
+          icon={rightIcon || DUMMY_ICON}
+          onClick={rightIconClick}
+          ariaLabel="오른쪽 아이콘"
+        />
       </div>
     );
   }
@@ -208,10 +279,22 @@ export default function AppBar({
       <div
         className={`flex w-full items-center justify-between px-5 py-[10px] ${className}`}
       >
-        {leftIcon || DUMMY_ICON}
+        <IconSlot
+          icon={leftIcon || DUMMY_ICON}
+          onClick={leftIconClick}
+          ariaLabel="왼쪽 아이콘"
+        />
         <div className="flex items-center gap-4">
-          {rightIcon || DUMMY_ICON}
-          {rightSecondaryIcon || DUMMY_ICON}
+          <IconSlot
+            icon={rightIcon || DUMMY_ICON}
+            onClick={rightIconClick}
+            ariaLabel="오른쪽 아이콘"
+          />
+          <IconSlot
+            icon={rightSecondaryIcon || DUMMY_ICON}
+            onClick={rightSecondaryIconClick}
+            ariaLabel="보조 오른쪽 아이콘"
+          />
         </div>
       </div>
     );
@@ -221,7 +304,13 @@ export default function AppBar({
     return (
       <div className={`w-full ${className}`}>
         <CenteredHeader
-          left={leftIcon || <BackGreyscale800Icon className="h-6 w-6" />}
+          left={
+            <IconSlot
+              icon={leftIcon || <BackGreyscale800Icon className="h-6 w-6" />}
+              onClick={leftIconClick}
+              ariaLabel="왼쪽 아이콘"
+            />
+          }
           title={
             <CategoryTitle
               title={title || '카테고리명'}
@@ -241,7 +330,11 @@ export default function AppBar({
 
   return (
     <div className={`flex w-full items-center px-5 py-[10px] ${className}`}>
-      {leftIcon || DUMMY_ICON}
+      <IconSlot
+        icon={leftIcon || DUMMY_ICON}
+        onClick={leftIconClick}
+        ariaLabel="왼쪽 아이콘"
+      />
     </div>
   );
 }

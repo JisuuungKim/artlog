@@ -171,6 +171,9 @@ public class NoteService {
     @Transactional
     public void deleteNote(User user, Long noteId) {
         Note note = getNoteAndVerifyOwner(user, noteId);
+        if (note.getNoteType() == NoteType.LESSON && note.getStatus() == NoteStatus.PROCESSING) {
+            note.getUser().restoreLessonNoteQuota(OffsetDateTime.now());
+        }
         noteRepository.delete(note);
     }
 

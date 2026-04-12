@@ -6,6 +6,8 @@ import Feedback from './components/Feedback';
 import LessonProcessingContent from './components/LessonProcessingContent';
 import LessonTitleCard from './components/LessonTitleCard';
 import { useDeleteLessonNote, useLessonNote } from '@/hooks/useLessonNote';
+import AppBar from '@/components/appBar';
+import { BackGreyscale800Icon } from '@/assets/icons';
 
 // tab 데이터
 const tabs = [
@@ -56,6 +58,11 @@ export default function LessonDetail() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <AppBar
+        variant="icons-left-only"
+        leftIcon={<BackGreyscale800Icon />}
+        leftIconClick={() => navigate(-1)}
+      />
       <LessonTitleCard
         title={data?.title ?? '2026.01.20. 레슨노트'}
         formattedDate={formattedDate}

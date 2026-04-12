@@ -30,6 +30,7 @@ public class LessonNoteWorker implements SmartLifecycle {
         }
 
         running = true;
+        lessonNoteProcessingService.failInterruptedProcessingNotes();
         executorService.submit(this::processQueuedJobs);
     }
 

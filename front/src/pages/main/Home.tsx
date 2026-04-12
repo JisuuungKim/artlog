@@ -17,6 +17,7 @@ import {
 } from '@/hooks/useNoteBrowser';
 import { useSelectedCategory } from '@/hooks/useSelectedCategory';
 import {
+  useDeleteLessonNote,
   useRecentLessonNotes,
   useRetryLessonNoteProcessing,
 } from '@/hooks/useLessonNote';
@@ -37,6 +38,7 @@ export default function Home() {
   const { data: recentNotes = [] } = useRecentLessonNotes(
     effectiveSelectedCategoryId || undefined
   );
+  const deleteLessonNote = useDeleteLessonNote();
   const retryLessonNoteProcessing = useRetryLessonNoteProcessing();
   const registerUserInterestCategory = useRegisterUserInterestCategory();
   const categoryInput = useTextInput('');
@@ -83,7 +85,7 @@ export default function Home() {
         variant="category-right-icons"
         title={selectedCategoryName}
         onCategoryChevronClick={handleCategoryBottomSheetOpen}
-        onNotificationClick={() => navigate('/notification')}
+        notificationIconClick={() => navigate('/notification')}
       />
       <div className="pt-9 pb-18 px-5">
         <p className="text-h2 mb-4 text-greyscale-text-title-900">최근 노트</p>
@@ -102,6 +104,7 @@ export default function Home() {
                       title={note.title}
                       progress={note.processingProgress ?? 5}
                       onClick={() => navigate(`/lessons/${note.id}`)}
+                      onClose={() => deleteLessonNote.mutate(note.id)}
                     />
                   );
                 }

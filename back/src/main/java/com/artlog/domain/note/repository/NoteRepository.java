@@ -1,6 +1,7 @@
 package com.artlog.domain.note.repository;
 
 import com.artlog.domain.note.entity.Note;
+import com.artlog.domain.note.entity.NoteStatus;
 import com.artlog.domain.note.entity.NoteType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -58,6 +59,8 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     Optional<Note> findByIdAndUserId(Long id, Long userId);
 
     List<Note> findByIdInAndUserId(List<Long> noteIds, Long userId);
+
+    List<Note> findByNoteTypeAndStatus(NoteType noteType, NoteStatus status);
 
     /** 특정 폴더에 속한 노트를 다른 폴더로 벌크 이동 (폴더 삭제 시 사용) */
     @Modifying

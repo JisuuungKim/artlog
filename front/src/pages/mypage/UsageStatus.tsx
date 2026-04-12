@@ -51,16 +51,8 @@ export default function UsageStatus() {
       <AppBar
         variant="title-left-back"
         title="이용 현황"
-        leftIcon={
-          <button
-            type="button"
-            onClick={handleBack}
-            className="flex h-6 w-6 items-center justify-center"
-            aria-label="마이페이지로 돌아가기"
-          >
-            <BackGreyscale800Icon className="h-6 w-6" />
-          </button>
-        }
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={handleBack}
       />
 
       <div className="pt-8">

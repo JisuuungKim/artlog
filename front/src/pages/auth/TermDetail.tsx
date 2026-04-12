@@ -16,16 +16,8 @@ export default function TermDetail() {
     <div className="min-h-full bg-greyscale-bg-50 pt-[10px]">
       <AppBar
         variant="icons-left-only"
-        leftIcon={
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-6 w-6 items-center justify-center"
-            aria-label="뒤로가기"
-          >
-            <BackGreyscale800Icon className="h-6 w-6" />
-          </button>
-        }
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
       />
 
       {detail ? (

@@ -24,16 +24,8 @@ export default function Inquiry() {
       <AppBar
         variant="title-left-back"
         title="1:1 문의"
-        leftIcon={
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-6 w-6 items-center justify-center"
-            aria-label="뒤로가기"
-          >
-            <BackGreyscale800Icon className="h-6 w-6" />
-          </button>
-        }
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
       />
 
       <div className="flex-1 px-5 pb-[132px] pt-8">

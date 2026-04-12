@@ -74,26 +74,10 @@ export default function NotificationPage() {
       <AppBar
         variant="title-left-right-icons"
         title="알림"
-        leftIcon={
-          <button
-            type="button"
-            aria-label="뒤로 가기"
-            onClick={() => navigate(-1)}
-            className="flex h-6 w-6 items-center justify-center"
-          >
-            <BackGreyscale800Icon className="h-6 w-6" />
-          </button>
-        }
-        rightIcon={
-          <button
-            type="button"
-            aria-label="알림 설정"
-            onClick={() => navigate('/notification/settings')}
-            className="flex h-6 w-6 items-center justify-center"
-          >
-            <SettingsIcon />
-          </button>
-        }
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
+        rightIcon={<SettingsIcon />}
+        rightIconClick={() => navigate('/notification/settings')}
       />
 
       <main className="flex min-h-[calc(100vh-44px)] flex-col pt-[54px]">

@@ -153,6 +153,14 @@ public class User {
         return this.remainingCount != null && this.remainingCount > 0;
     }
 
+    public void restoreLessonNoteQuota(OffsetDateTime now) {
+        refreshMonthlyLessonNoteQuota(now);
+        if (this.remainingCount < MONTHLY_LESSON_NOTE_LIMIT) {
+            this.remainingCount++;
+            this.updatedAt = now;
+        }
+    }
+
     public void upsertSocialProfile(String provider, String socialId, String email, String name) {
         this.provider = provider;
         this.socialId = socialId;

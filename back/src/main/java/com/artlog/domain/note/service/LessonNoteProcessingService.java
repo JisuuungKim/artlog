@@ -82,6 +82,7 @@ public class LessonNoteProcessingService {
 
                 return new AiJobPayload(
                         note.getId(),
+                        note.getUser().getId(),
                         note.getRecordingUrl(),
                         note.getNoteSongTags().stream().map(tag -> tag.getUserSong().getTitle()).toList()
                 );
@@ -97,7 +98,7 @@ public class LessonNoteProcessingService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 응답이 비어 있습니다.");
             }
 
-            transactionTemplate.executeWithoutResult(status -> applyResponse(noteId, response.lessonNote()));
+            transactionTemplate.executeWithoutResult(status -> applyResponse(noteId, response.lessonNote(), response.growthReport()));
             lessonNoteEventService.complete(noteId, NoteStatus.COMPLETED);
         } catch (Exception exception) {
             log.error("Lesson note AI processing failed. noteId={}", noteId, exception);
@@ -155,6 +156,8 @@ public class LessonNoteProcessingService {
     private LessonNoteGenerateResponse requestLessonNote(AiJobPayload payload) {
         Map<String, Object> requestBody = Map.of(
                 "session_id", "note-" + payload.noteId(),
+                "user_id", payload.userId(),
+                "note_id", payload.noteId(),
                 "audio_path", payload.audioPath(),
                 "song_title", payload.songTitles(),
                 "keywords", DEFAULT_KEYWORDS.stream().map(keyword -> Map.of(
@@ -282,13 +285,14 @@ public class LessonNoteProcessingService {
         return false;
     }
 
-    private void applyResponse(Long noteId, LessonNoteBody lessonNote) {
+    private void applyResponse(Long noteId, LessonNoteBody lessonNote, String growthReport) {
         Note note = noteRepository.findById(noteId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "노트를 찾을 수 없습니다."));
         note.completeAnalysis(
                 toTitleContents(lessonNote.keyFeedback()),
                 toTitleContents(lessonNote.practiceGuide()),
-                toAssignmentContents(lessonNote.nextAssignment())
+                toAssignmentContents(lessonNote.nextAssignment()),
+                growthReport
         );
 
         replaceFeedbackKeywords(note, lessonNote.feedbackCards());
@@ -379,7 +383,8 @@ public class LessonNoteProcessingService {
     private record LessonNoteGenerateResponse(
             @JsonProperty("session_id") String sessionId,
             String transcript,
-            @JsonProperty("lesson_note") LessonNoteBody lessonNote
+            @JsonProperty("lesson_note") LessonNoteBody lessonNote,
+            @JsonProperty("growth_report") String growthReport
     ) {
     }
 
@@ -424,6 +429,7 @@ public class LessonNoteProcessingService {
 
     private record AiJobPayload(
             Long noteId,
+            Long userId,
             String audioPath,
             List<String> songTitles
     ) {

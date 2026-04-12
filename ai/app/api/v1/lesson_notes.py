@@ -16,12 +16,16 @@ NEXT_STAGE_BY_COMPLETED_STAGE = {
     "correction": "feedback_analysis",
     "feedback_analysis": "lesson_note",
     "lesson_note": "review_lesson_note",
+    "review_lesson_note": "embed_note",
+    "embed_note": "growth_report",
 }
 
 
 def build_initial_state(body: LessonNoteRequest) -> dict:
     return {
         "session_id": body.session_id,
+        "user_id": body.user_id,
+        "note_id": body.note_id,
         "audio_path": body.audio_path,
         "song_title": body.song_title,
         "keywords": [kw.model_dump() for kw in body.keywords],
@@ -31,6 +35,7 @@ def build_initial_state(body: LessonNoteRequest) -> dict:
         "review_feedback": None,
         "errors": [],
         "retry_count": 0,
+        "growth_report": None,
     }
 
 
@@ -94,6 +99,7 @@ async def generate_lesson_note(
         session_id=body.session_id,
         transcript=final_state.get("transcript", ""),
         lesson_note=to_note_dict(lesson_note),
+        growth_report=final_state.get("growth_report"),
     )
 
 
@@ -138,6 +144,8 @@ async def stream_lesson_note_generation(
                         and state.get("retry_count", 0) < MAX_REGEN_ATTEMPTS
                     ):
                         next_stage = "lesson_note"
+                    elif node_name == "review_lesson_note" and not state.get("needs_regeneration"):
+                        next_stage = "embed_note"
 
                     if next_stage and next_stage != last_emitted_stage:
                         yield progress(next_stage)
@@ -152,6 +160,7 @@ async def stream_lesson_note_generation(
                     "session_id": body.session_id,
                     "transcript": state.get("transcript", ""),
                     "lesson_note": to_note_dict(lesson_note),
+                    "growth_report": state.get("growth_report"),
                 },
             )
         except asyncio.CancelledError:

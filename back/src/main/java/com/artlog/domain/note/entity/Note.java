@@ -72,6 +72,9 @@ public class Note extends BaseTimeEntity {
     @Column(name = "condition_text", columnDefinition = "TEXT", nullable = true)
     private String conditionText;
 
+    @Column(name = "growth_report", columnDefinition = "TEXT")
+    private String growthReport;
+
     // --- 연관관계 ---
 
     @OneToMany(mappedBy = "note", cascade = CascadeType.ALL, orphanRemoval = true,
@@ -115,11 +118,13 @@ public class Note extends BaseTimeEntity {
     public void completeAnalysis(
             List<TitleContentItem> keyFeedback,
             List<TitleContentItem> practiceGuide,
-            List<TitleContentItem> nextAssignment
+            List<TitleContentItem> nextAssignment,
+            String growthReport
     ) {
         this.keyFeedback = keyFeedback;
         this.practiceGuide = practiceGuide;
         this.nextAssignment = nextAssignment;
+        this.growthReport = growthReport;
         this.status = NoteStatus.COMPLETED;
     }
 

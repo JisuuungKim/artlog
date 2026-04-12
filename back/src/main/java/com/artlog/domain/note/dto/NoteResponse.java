@@ -67,7 +67,8 @@ public class NoteResponse {
             List<TitleContentItem> practiceGuide,
             List<TitleContentItem> nextAssignment,
             List<FeedbackGroup> feedbackGroups,
-            List<LyricsFeedbackItem> lyricsFeedbacks
+            List<LyricsFeedbackItem> lyricsFeedbacks,
+            String growthReport
     ) {
         public static NoteDetail from(Note note) {
             return new NoteDetail(
@@ -88,7 +89,8 @@ public class NoteResponse {
                     note.getPracticeGuide() != null ? note.getPracticeGuide() : List.of(),
                     note.getNextAssignment() != null ? note.getNextAssignment() : List.of(),
                     note.getFeedbackKeywords().stream().map(FeedbackGroup::from).toList(),
-                    note.getLyricsFeedbacks().stream().map(LyricsFeedbackItem::from).toList()
+                    note.getLyricsFeedbacks().stream().map(LyricsFeedbackItem::from).toList(),
+                    note.getGrowthReport()
             );
         }
     }

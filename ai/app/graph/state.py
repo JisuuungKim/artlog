@@ -48,6 +48,9 @@ class LessonNoteResponse(BaseModel):
 
 # ── 3. LangGraph State ───────────────────────────────────────────────
 class AgentState(TypedDict):
+    # 입력
+    user_id: int
+    note_id: int
     song_title: List[str]
     keywords: List[Keyword]
     audio_path: str                             # 입력: 녹음 파일 경로
@@ -60,3 +63,6 @@ class AgentState(TypedDict):
     review_feedback: Optional[str]
     errors: List[str]
     retry_count: int
+
+    # 성장 리포트
+    growth_report: Optional[str]

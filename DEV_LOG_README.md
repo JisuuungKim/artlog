@@ -58,12 +58,6 @@
 - 어떻게 개선했는지: `FeedbackCard` 엔티티에 `Note` 관계를 추가하고, AI 결과 저장 시 feedback card에 note를 함께 연결했습니다.
 - 어떤 효과가 있는지: AI가 생성한 피드백 카드가 DB에 정상 저장되어 완료된 레슨노트 상세 화면에서 결과를 조회할 수 있습니다.
 
-### AppBar 아이콘 클릭 구조 정리
-
-- 왜 개선했는지: 화면마다 AppBar 아이콘을 직접 버튼으로 감싸 클릭 처리가 흩어져 있었습니다.
-- 어떻게 개선했는지: AppBar에 `leftIconClick`, `rightIconClick`, `rightSecondaryIconClick`, `notificationIconClick` props를 추가하고 기존 사용처를 이 방식으로 바꿨습니다.
-- 어떤 효과가 있는지: 상단바 아이콘 클릭 방식이 일관돼 화면별 중복 코드가 줄고 유지보수가 쉬워졌습니다.
-
 ### 남겨둔 고민
 
 - `EventSource`는 커스텀 헤더를 붙이기 어려워, 현재는 SSE 요청에 한해 access token을 query parameter로 전달합니다. 장기적으로는 쿠키 기반 인증이나 SSE 전용 토큰 전략을 검토할 수 있습니다.

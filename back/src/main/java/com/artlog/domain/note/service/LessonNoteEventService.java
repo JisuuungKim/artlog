@@ -23,15 +23,17 @@ public class LessonNoteEventService {
 
     private static final long TIMEOUT_MS = 30L * 60L * 1000L;
     private static final Duration PROGRESS_TTL = Duration.ofDays(1);
-    private static final Map<String, ProgressStep> PROGRESS_STEPS = Map.of(
-            "queued", new ProgressStep(5, "레슨노트를 준비하고 있어요."),
-            "stt", new ProgressStep(15, "녹음본을 이해하고 있어요."),
-            "correction", new ProgressStep(35, "레슨 내용을 정리하고 있어요."),
-            "feedback_analysis", new ProgressStep(55, "선생님의 피드백을 살펴보고 있어요."),
-            "lesson_note", new ProgressStep(75, "연습에 도움이 되도록 노트를 만들고 있어요."),
-            "review_lesson_note", new ProgressStep(90, "노트 내용을 한 번 더 확인하고 있어요."),
-            "completed", new ProgressStep(100, "레슨노트가 준비됐어요."),
-            "failed", new ProgressStep(100, "레슨노트 생성에 실패했어요.")
+    private static final Map<String, ProgressStep> PROGRESS_STEPS = Map.ofEntries(
+            Map.entry("queued",            new ProgressStep(5,   "레슨노트를 준비하고 있어요.")),
+            Map.entry("stt",               new ProgressStep(15,  "녹음본을 이해하고 있어요.")),
+            Map.entry("correction",        new ProgressStep(30,  "레슨 내용을 정리하고 있어요.")),
+            Map.entry("feedback_analysis", new ProgressStep(50,  "선생님의 피드백을 살펴보고 있어요.")),
+            Map.entry("lesson_note",       new ProgressStep(65,  "연습에 도움이 되도록 노트를 만들고 있어요.")),
+            Map.entry("review_lesson_note",new ProgressStep(80,  "노트 내용을 한 번 더 확인하고 있어요.")),
+            Map.entry("embed_note",        new ProgressStep(88,  "레슨 기록을 저장하고 있어요.")),
+            Map.entry("growth_report",     new ProgressStep(95,  "성장 리포트를 작성하고 있어요.")),
+            Map.entry("completed",         new ProgressStep(100, "레슨노트가 준비됐어요.")),
+            Map.entry("failed",            new ProgressStep(100, "레슨노트 생성에 실패했어요."))
     );
 
     private final Map<Long, List<SseEmitter>> emitters = new ConcurrentHashMap<>();

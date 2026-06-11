@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     postgres_user: str = "artlog_user"
     postgres_password: str = ""
 
-    # ── LangGraph 체크포인트 스키마 ────────────────────────────────
-    ai_schema: str = "ai_agent_schema"
-
     # ── LLM ───────────────────────────────────────────────────────
     openai_api_key: str = ""
 

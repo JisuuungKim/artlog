@@ -18,7 +18,7 @@ class KeywordItem(BaseModel):
 class LessonNoteRequest(BaseModel):
     """POST /api/v1/lesson-notes/generate 요청 바디."""
 
-    session_id: str = Field(..., description="세션 ID — LangGraph thread_id로 사용")
+    session_id: str = Field(..., description="세션 ID (로깅/추적용)")
     user_id: int = Field(..., description="사용자 ID")
     note_id: int = Field(..., description="레슨노트 ID")
     category_id: Optional[int] = Field(default=None, description="레슨노트 카테고리 ID")

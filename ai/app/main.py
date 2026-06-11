@@ -4,7 +4,7 @@ artlog AI Agent Server
 FastAPI 애플리케이션 진입점.
 
 lifespan 컨텍스트 매니저를 통해:
-  - 앱 시작 시 AsyncConnectionPool, AsyncPostgresSaver, 워크플로우를 초기화
+  - 앱 시작 시 AsyncConnectionPool(EmbeddingStore 용), 워크플로우를 초기화
   - 앱 종료 시 커넥션 풀을 안전하게 닫습니다.
 """
 
@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from openai import AsyncOpenAI
 
 from app.core.config import get_settings
-from app.graph.workflow import create_pool, create_checkpointer, compile_workflow
+from app.graph.workflow import create_pool, compile_workflow
 from app.services.embedding_store import EmbeddingStore
 import app.services.embedding_store as _embedding_store_module
 from app.api.v1 import lesson_notes
@@ -57,25 +57,21 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Starting up AI Agent Server...")
 
-    # 1. 비동기 커넥션 풀 생성
+    # 1. 비동기 커넥션 풀 생성 (EmbeddingStore 용)
     pool = await create_pool()
 
-    # 2. PostgresSaver 초기화 및 `ai_agent_schema` 내에 체크포인트 테이블 생성
-    checkpointer = await create_checkpointer(pool)
-
-    # 3. EmbeddingStore 초기화 (pgvector 테이블 생성 포함)
+    # 2. EmbeddingStore 초기화 (pgvector 확장 + lesson_note_embedding 테이블 생성)
     openai_client = AsyncOpenAI(api_key=settings.openai_api_key or None)
     embedding_store = EmbeddingStore(pool=pool, openai_client=openai_client)
     await embedding_store.setup()
     # growth_report_agent.py에서 임포트해 쓸 수 있도록 모듈 변수에 주입
     _embedding_store_module._store = embedding_store
 
-    # 4. 워크플로우 컴파일 (체크포인터 주입)
-    workflow = compile_workflow(checkpointer)
+    # 3. 워크플로우 컴파일 (stateless — 체크포인터 미사용)
+    workflow = compile_workflow()
 
-    # 5. app.state 에 저장 → 라우터에서 request.app.state 로 접근
+    # 4. app.state 에 저장 → 라우터에서 request.app.state 로 접근
     app.state.pool = pool
-    app.state.checkpointer = checkpointer
     app.state.embedding_store = embedding_store
     app.state.workflow = workflow
 

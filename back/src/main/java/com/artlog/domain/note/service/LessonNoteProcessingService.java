@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,6 +105,8 @@ public class LessonNoteProcessingService {
             }
 
             transactionTemplate.executeWithoutResult(status -> applyResponse(noteId, response.lessonNote(), response.growthReport()));
+            // STT를 마친 audio는 더 이상 쓰이지 않으므로 트랜잭션 커밋 후 디스크에서 제거
+            deleteRecordingFile(payload.audioPath());
             lessonNoteEventService.complete(noteId, NoteStatus.COMPLETED);
         } catch (Exception exception) {
             log.error("Lesson note AI processing failed. noteId={}", noteId, exception);
@@ -302,6 +306,18 @@ public class LessonNoteProcessingService {
 
         replaceFeedbackKeywords(note, lessonNote.feedbackCards());
         replaceLyricsFeedbacks(note, lessonNote.lyricsFeedbacks());
+        note.clearRecording();
+    }
+
+    private void deleteRecordingFile(String audioPath) {
+        if (audioPath == null || audioPath.isBlank()) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Path.of(audioPath));
+        } catch (IOException exception) {
+            log.warn("Failed to delete recording file. path={}", audioPath, exception);
+        }
     }
 
     private void markFailed(Long noteId) {

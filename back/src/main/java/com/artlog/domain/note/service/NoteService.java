@@ -24,6 +24,7 @@ import com.artlog.domain.song.repository.UserSongRepository;
 import com.artlog.domain.user.entity.User;
 import com.artlog.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -175,8 +177,10 @@ public class NoteService {
         if (note.getNoteType() == NoteType.LESSON && note.getStatus() == NoteStatus.PROCESSING) {
             note.getUser().restoreLessonNoteQuota(OffsetDateTime.now());
         }
+        String audioPath = note.getRecordingUrl();
         lessonNoteEmbeddingCleanupService.deleteByNoteId(user.getId(), note.getId());
         noteRepository.delete(note);
+        deleteRecordingFile(audioPath);
     }
 
     /** 노트 제목 변경 */
@@ -211,11 +215,13 @@ public class NoteService {
     public void bulkDeleteNotes(User user, BulkDeleteRequest req) {
         List<Note> notes = noteRepository.findByIdInAndUserId(req.noteIds(), user.getId());
         notes.forEach(note -> validateNoteCategoryAccess(user, note));
+        List<String> audioPaths = notes.stream().map(Note::getRecordingUrl).toList();
         lessonNoteEmbeddingCleanupService.deleteByNoteIds(
                 user.getId(),
                 notes.stream().map(Note::getId).toList()
         );
         noteRepository.bulkDeleteNotes(req.noteIds(), user.getId());
+        audioPaths.forEach(this::deleteRecordingFile);
     }
 
     // --- 내부 헬퍼 ---
@@ -276,6 +282,17 @@ public class NoteService {
                 lessonNoteJobQueueService.enqueue(noteId);
             }
         });
+    }
+
+    private void deleteRecordingFile(String audioPath) {
+        if (audioPath == null || audioPath.isBlank()) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Path.of(audioPath));
+        } catch (IOException exception) {
+            log.warn("Failed to delete recording file. path={}", audioPath, exception);
+        }
     }
 
     private Path storeAudioFile(MultipartFile audio) {

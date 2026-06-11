@@ -132,4 +132,8 @@ public class Note extends BaseTimeEntity {
     public void markFailed() {
         this.status = NoteStatus.FAILED;
     }
+
+    public void clearRecording() {
+        this.recordingUrl = null;
+    }
 }

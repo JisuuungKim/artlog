@@ -12,8 +12,8 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --prefix=/install --no-cache-dir -r requirements.txt
 
-# ── 실행 스테이지 ──────────────────────────────────────────────
-FROM python:3.11-slim
+# ── 공통 런타임 베이스 ─────────────────────────────────────────
+FROM python:3.11-slim AS runtime-base
 
 WORKDIR /app
 
@@ -25,9 +25,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 빌더에서 설치된 패키지만 복사
 COPY --from=builder /install /usr/local
 
-# 소스 코드 복사
-COPY app/ ./app/
-
 EXPOSE 8001
 
+# ── 개발 단계 (소스 마운트 + --reload) ─────────────────────────
+FROM runtime-base AS dev
+
+# 소스는 docker-compose가 bind mount로 주입
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+
+# ── 운영 단계 (소스 굳혀서 복사, --reload 제거) ────────────────
+FROM runtime-base AS prod
+
+COPY app/ ./app/
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

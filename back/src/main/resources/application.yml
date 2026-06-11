@@ -52,6 +52,8 @@ app:
   auth:
     refresh-cookie-name: ${REFRESH_COOKIE_NAME:refresh_token}
     refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:true}
+    # 단일 도메인이면 Strict, 프론트/API 가 다른 호스트면 Lax(같은 루트도메인) 또는 None(cross-site)
+    refresh-cookie-same-site: ${REFRESH_COOKIE_SAME_SITE:Strict}
   apple:
     audience: ${APPLE_CLIENT_ID:}
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}

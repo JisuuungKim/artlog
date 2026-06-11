@@ -1,0 +1,69 @@
+# 운영 override. 기본 compose 와 함께 사용:
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# - 외부 노출은 caddy 만 (80/443). app/ai/db/redis 모두 docker network 내부에만 노출.
+# - 소스 bind mount 제거. 이미지에 굳혀서 배포.
+# - DB / uploads / Caddy 인증서는 named volume 으로 영속화.
+
+services:
+  db:
+    ports: !override []
+    volumes: !override
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+  redis:
+    ports: !override []
+
+  app:
+    build:
+      context: ./back
+      target: prod
+    command: !reset null
+    ports: !override []
+    volumes: !override
+      - uploads:/uploads
+    env_file:
+      - ./back/.env.prod
+
+  ai:
+    build:
+      context: ./ai
+      target: prod
+    ports: !override []
+    volumes: !override
+      - uploads:/uploads
+    env_file:
+      - ./ai/.env.prod
+
+  # 프론트는 Vercel 에서 호스팅하므로 운영에서는 컨테이너를 띄우지 않습니다.
+  # base compose 의 front 정의를 "disabled" 프로필로 격리해 기본 up 대상에서 제외.
+  # (로컬 dev 는 docker-compose.yml 만 쓰므로 영향 없음)
+  front:
+    profiles: !override ["disabled"]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: artlog-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+
+volumes:
+  db_data:
+  uploads:
+  caddy_data:
+  caddy_config:

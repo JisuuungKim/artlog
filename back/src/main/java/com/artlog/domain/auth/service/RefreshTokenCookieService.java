@@ -17,15 +17,18 @@ public class RefreshTokenCookieService {
 
     private final String cookieName;
     private final boolean secure;
+    private final String sameSite;
     private final long maxAgeSeconds;
 
     public RefreshTokenCookieService(
             @Value("${app.auth.refresh-cookie-name}") String cookieName,
             @Value("${app.auth.refresh-cookie-secure}") boolean secure,
+            @Value("${app.auth.refresh-cookie-same-site}") String sameSite,
             @Value("${jwt.refresh-token-expiration-seconds}") long maxAgeSeconds
     ) {
         this.cookieName = cookieName;
         this.secure = secure;
+        this.sameSite = sameSite;
         this.maxAgeSeconds = maxAgeSeconds;
     }
 
@@ -33,7 +36,7 @@ public class RefreshTokenCookieService {
         ResponseCookie cookie = ResponseCookie.from(cookieName, refreshToken)
                 .httpOnly(true)
                 .secure(secure)
-                .sameSite("Strict")
+                .sameSite(sameSite)
                 .path("/")
                 .maxAge(Duration.ofSeconds(maxAgeSeconds))
                 .build();
@@ -45,7 +48,7 @@ public class RefreshTokenCookieService {
         ResponseCookie expiredCookie = ResponseCookie.from(cookieName, "")
                 .httpOnly(true)
                 .secure(secure)
-                .sameSite("Strict")
+                .sameSite(sameSite)
                 .path("/")
                 .maxAge(Duration.ZERO)
                 .build();

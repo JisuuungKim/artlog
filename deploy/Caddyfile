@@ -1,0 +1,28 @@
+# API 전용 도메인 (예: api.artlog.com). 프론트는 Vercel 에서 별도 호스팅하므로
+# 여기서는 Spring 백엔드(app:8080)만 프록시합니다.
+# DOMAIN, ACME_EMAIL 은 docker-compose.prod.yml 의 environment 로 주입됩니다.
+
+{
+    email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+    encode gzip
+
+    # 모든 요청을 Spring 으로. (정의되지 않은 경로는 Spring 이 404 응답)
+    # SSE / 긴 스트림 (노트 진행률 이벤트) 즉시 flush.
+    reverse_proxy app:8080 {
+        flush_interval -1
+        transport http {
+            read_timeout 30m
+        }
+    }
+
+    # 기본 보안 헤더
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}

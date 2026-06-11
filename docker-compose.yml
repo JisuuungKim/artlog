@@ -52,7 +52,9 @@ services:
 
   # 3. AI Agent 서비스 (FastAPI + LangGraph)
   ai:
-    build: ./ai
+    build:
+      context: ./ai
+      target: dev
     container_name: artlog-ai
     ports:
       - "8001:8001"

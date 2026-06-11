@@ -414,6 +414,7 @@ export default function NoteList() {
                   createdAt={formatCreatedAt(note.createdAt)}
                   folderName={note.folderName ?? '모든 노트'}
                   songTitles={note.songTitles}
+                  onClick={() => navigate(`/lessons/${note.id}`)}
                   onEtcClick={() =>
                     handleEtcClick(
                       String(note.id),

@@ -1,6 +1,7 @@
 package com.artlog.domain.song.controller;
 
 import com.artlog.common.dto.ApiResponse;
+import com.artlog.domain.song.dto.SongRequest.CreateSongRequest;
 import com.artlog.domain.song.dto.SongRequest.RenameSongRequest;
 import com.artlog.domain.song.dto.SongResponse.SongSummary;
 import com.artlog.domain.song.dto.SongResponse.SongWithNotes;
@@ -9,6 +10,7 @@ import com.artlog.domain.user.entity.User;
 import com.artlog.global.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +36,20 @@ public class UserSongController {
         User user = AuthenticatedUserResolver.resolve(principal);
         List<SongSummary> songs = userSongService.getSongsByCategory(user, categoryId);
         return ResponseEntity.ok(ApiResponse.ok(songs));
+    }
+
+    /**
+     * POST /api/v1/songs
+     * 곡 생성 (직접 추가). 같은 카테고리에 같은 제목이 있으면 기존 곡 반환.
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponse<SongSummary>> createSong(
+            @AuthenticationPrincipal Object principal,
+            @Valid @RequestBody CreateSongRequest req
+    ) {
+        User user = AuthenticatedUserResolver.resolve(principal);
+        SongSummary created = userSongService.createSong(user, req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(created));
     }
 
     /**

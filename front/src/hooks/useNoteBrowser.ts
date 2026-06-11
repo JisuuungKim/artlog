@@ -163,6 +163,29 @@ export function useSongs(categoryId?: string) {
   });
 }
 
+export function useCreateSong() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      title,
+      categoryId,
+    }: {
+      title: string;
+      categoryId: number;
+    }) => {
+      const response = await api.post<ApiResponse<SongSummary>>(
+        '/api/v1/songs',
+        { title, categoryId }
+      );
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+    },
+  });
+}
+
 export function useSongNotes(songId?: string) {
   return useQuery({
     queryKey: ['song-notes', songId],

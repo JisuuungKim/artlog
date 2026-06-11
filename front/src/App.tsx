@@ -35,7 +35,7 @@ function App() {
   return (
     <div className="safe-pt h-[100dvh] bg-greyscale-bg-100 w-full max-w-[480px] mx-auto flex flex-col">
       <main
-        className={`flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide ${showBottomNav ? 'pb-bottom-nav-safe' : 'safe-pb'}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide bg-greyscale-bg-100 ${showBottomNav ? 'pb-bottom-nav-safe' : 'safe-pb'}`}
       >
         <Outlet />
       </main>

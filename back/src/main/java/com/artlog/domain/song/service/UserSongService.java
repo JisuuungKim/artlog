@@ -1,9 +1,11 @@
 package com.artlog.domain.song.service;
 
 import com.artlog.common.exception.ArtlogException;
+import com.artlog.domain.category.entity.Category;
 import com.artlog.domain.category.service.CategoryFolderPolicyService;
 import com.artlog.domain.note.dto.NoteResponse.NoteSummary;
 import com.artlog.domain.note.repository.NoteRepository;
+import com.artlog.domain.song.dto.SongRequest.CreateSongRequest;
 import com.artlog.domain.song.dto.SongRequest.RenameSongRequest;
 import com.artlog.domain.song.dto.SongResponse.SongSummary;
 import com.artlog.domain.song.dto.SongResponse.SongWithNotes;
@@ -58,6 +60,25 @@ public class UserSongService {
                 .toList();
 
         return new SongWithNotes(song.getId(), song.getTitle(), notes);
+    }
+
+    /** 곡 생성 (같은 카테고리에 같은 제목이 이미 있으면 기존 곡 반환) */
+    @Transactional
+    public SongSummary createSong(User user, CreateSongRequest req) {
+        Category category = categoryFolderPolicyService.resolveUserInterestCategory(user, req.categoryId());
+        String title = req.title().trim();
+
+        return userSongRepository
+                .findByUserIdAndCategoryIdAndTitleIgnoreCase(user.getId(), category.getId(), title)
+                .map(SongSummary::from)
+                .orElseGet(() -> {
+                    UserSong song = UserSong.builder()
+                            .user(user)
+                            .category(category)
+                            .title(title)
+                            .build();
+                    return SongSummary.from(userSongRepository.save(song));
+                });
     }
 
     /** 노래 제목 변경 */

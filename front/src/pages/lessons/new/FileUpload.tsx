@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import AppBar from '@/components/appBar';
 import Button from '@/components/button/Button';
 import Chip from '@/components/common/Chip';
 import Checkbox from '@/components/checkbox';
@@ -11,6 +12,7 @@ import {
 import { useTextInput } from '@/components/textInput';
 import {
   ArrowRightGreyscale500Icon,
+  BackGreyscale800Icon,
   PlusGreyscale500Icon,
 } from '@/assets/icons';
 import SongSelector from '@/pages/lessons/new/components/SongSelector';
@@ -19,6 +21,7 @@ import DialogModal from '@/components/modal/DialogModal';
 import { useCreateLessonNote } from '@/hooks/useLessonNote';
 import {
   useCategories,
+  useCreateSong,
   useFolders,
   useSongs,
 } from '@/hooks/useNoteBrowser';
@@ -32,6 +35,7 @@ export default function FileUpload() {
   const navigate = useNavigate();
   const location = useLocation();
   const createLessonNoteMutation = useCreateLessonNote();
+  const createSongMutation = useCreateSong();
   const { data: categoriesData = [] } = useCategories();
   const { effectiveSelectedCategoryId, setSelectedCategoryId } =
     useSelectedCategory(categoriesData);
@@ -186,7 +190,33 @@ export default function FileUpload() {
 
   // 곡 직접 추가에서 뒤로가기 버튼 클릭 핸들러
   const handleBackFromAddSong = () => {
+    songInput.onClear();
     setBottomSheetTitle('레슨 곡 선택');
+  };
+
+  // 곡 직접 추가에서 "추가" 버튼 클릭 핸들러
+  const handleSubmitNewSong = () => {
+    const title = songInput.value.trim();
+    if (!title || !effectiveSelectedCategoryId || createSongMutation.isPending) {
+      return;
+    }
+
+    createSongMutation.mutate(
+      { title, categoryId: Number(effectiveSelectedCategoryId) },
+      {
+        onSuccess: created => {
+          const createdId = String(created.id);
+          setSelectedSongIds(previous =>
+            previous.includes(createdId) ? previous : [...previous, createdId]
+          );
+          if (noLessonSong) {
+            setNoLessonSong(false);
+          }
+          songInput.onClear();
+          setBottomSheetTitle('레슨 곡 선택');
+        },
+      }
+    );
   };
 
   // 컨디션 입력 버튼 클릭 핸들러
@@ -266,6 +296,9 @@ export default function FileUpload() {
       {
         onSuccess: created => {
           sessionStorage.removeItem('pendingLessonAudio');
+          // 생성 후 detail에서 뒤로가기 → 홈이 되도록
+          // 현재 /lessons/new(또는 그 위 condition 체인)를 홈으로 치환한 뒤 detail push
+          navigate('/', { replace: true });
           navigate(`/lessons/${created.id}`);
         },
       }
@@ -314,7 +347,7 @@ export default function FileUpload() {
             onBlur: songInput.onBlur,
             onClear: songInput.onClear,
           }}
-          onAdd={handleBackFromAddSong}
+          onAdd={handleSubmitNewSong}
           placeholder="곡 이름을 입력해주세요"
         />
       );
@@ -323,6 +356,11 @@ export default function FileUpload() {
 
   return (
     <div className="flex flex-col bg-greyscale-bg-50 min-h-screen">
+      <AppBar
+        variant="icons-left-only"
+        leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
+        leftIconClick={() => navigate(-1)}
+      />
       {/* Content */}
       <div className="flex-1 px-5">
         {/* Note Title Section */}

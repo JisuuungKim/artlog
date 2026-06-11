@@ -46,12 +46,12 @@ const CardListItem: React.FC<CardListItemProps> = ({
               <h3 className="text-subtitle2 text-greyscale-text-title-900">
                 {data.title || '타이틀'}
               </h3>
-              <p className="text-body2 text-greyscale-neutral-600">
+              <p className="text-body2 text-greyscale-neutral-600 whitespace-pre-line">
                 {data.content}
               </p>
             </div>
           ) : (
-            <p className="text-body2 text-greyscale-text-title-800 flex-1">
+            <p className="text-body2 text-greyscale-text-title-800 flex-1 whitespace-pre-line">
               {data.content}
             </p>
           )}

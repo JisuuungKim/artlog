@@ -19,5 +19,5 @@ export default function MainPage() {
     }
   };
 
-  return <div>{renderContent()}</div>;
+  return <div className="min-h-full bg-greyscale-bg-100">{renderContent()}</div>;
 }

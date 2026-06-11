@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +84,11 @@ public class LessonNoteProcessingService {
 
                 return new AiJobPayload(
                         note.getId(),
+                        note.getUser().getId(),
+                        note.getFolder() != null && note.getFolder().getCategory() != null
+                                ? note.getFolder().getCategory().getId()
+                                : null,
+                        note.getFolder() != null ? note.getFolder().getId() : null,
                         note.getRecordingUrl(),
                         note.getNoteSongTags().stream().map(tag -> tag.getUserSong().getTitle()).toList()
                 );
@@ -97,7 +104,9 @@ public class LessonNoteProcessingService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 응답이 비어 있습니다.");
             }
 
-            transactionTemplate.executeWithoutResult(status -> applyResponse(noteId, response.lessonNote()));
+            transactionTemplate.executeWithoutResult(status -> applyResponse(noteId, response.lessonNote(), response.growthReport()));
+            // STT를 마친 audio는 더 이상 쓰이지 않으므로 트랜잭션 커밋 후 디스크에서 제거
+            deleteRecordingFile(payload.audioPath());
             lessonNoteEventService.complete(noteId, NoteStatus.COMPLETED);
         } catch (Exception exception) {
             log.error("Lesson note AI processing failed. noteId={}", noteId, exception);
@@ -153,15 +162,18 @@ public class LessonNoteProcessingService {
     }
 
     private LessonNoteGenerateResponse requestLessonNote(AiJobPayload payload) {
-        Map<String, Object> requestBody = Map.of(
-                "session_id", "note-" + payload.noteId(),
-                "audio_path", payload.audioPath(),
-                "song_title", payload.songTitles(),
-                "keywords", DEFAULT_KEYWORDS.stream().map(keyword -> Map.of(
-                        "feedback_keyword_id", keyword.feedbackKeywordId(),
-                        "feedback_keyword_name", keyword.feedbackKeywordName()
-                )).toList()
-        );
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("session_id", "note-" + payload.noteId());
+        requestBody.put("user_id", payload.userId());
+        requestBody.put("note_id", payload.noteId());
+        requestBody.put("category_id", payload.categoryId());
+        requestBody.put("folder_id", payload.folderId());
+        requestBody.put("audio_path", payload.audioPath());
+        requestBody.put("song_title", payload.songTitles());
+        requestBody.put("keywords", DEFAULT_KEYWORDS.stream().map(keyword -> Map.of(
+                "feedback_keyword_id", keyword.feedbackKeywordId(),
+                "feedback_keyword_name", keyword.feedbackKeywordName()
+        )).toList());
 
         try {
             lessonNoteEventService.update(payload.noteId(), NoteStatus.PROCESSING, "stt");
@@ -282,17 +294,30 @@ public class LessonNoteProcessingService {
         return false;
     }
 
-    private void applyResponse(Long noteId, LessonNoteBody lessonNote) {
+    private void applyResponse(Long noteId, LessonNoteBody lessonNote, String growthReport) {
         Note note = noteRepository.findById(noteId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "노트를 찾을 수 없습니다."));
         note.completeAnalysis(
                 toTitleContents(lessonNote.keyFeedback()),
                 toTitleContents(lessonNote.practiceGuide()),
-                toAssignmentContents(lessonNote.nextAssignment())
+                toAssignmentContents(lessonNote.nextAssignment()),
+                growthReport
         );
 
         replaceFeedbackKeywords(note, lessonNote.feedbackCards());
         replaceLyricsFeedbacks(note, lessonNote.lyricsFeedbacks());
+        note.clearRecording();
+    }
+
+    private void deleteRecordingFile(String audioPath) {
+        if (audioPath == null || audioPath.isBlank()) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Path.of(audioPath));
+        } catch (IOException exception) {
+            log.warn("Failed to delete recording file. path={}", audioPath, exception);
+        }
     }
 
     private void markFailed(Long noteId) {
@@ -379,7 +404,8 @@ public class LessonNoteProcessingService {
     private record LessonNoteGenerateResponse(
             @JsonProperty("session_id") String sessionId,
             String transcript,
-            @JsonProperty("lesson_note") LessonNoteBody lessonNote
+            @JsonProperty("lesson_note") LessonNoteBody lessonNote,
+            @JsonProperty("growth_report") String growthReport
     ) {
     }
 
@@ -424,6 +450,9 @@ public class LessonNoteProcessingService {
 
     private record AiJobPayload(
             Long noteId,
+            Long userId,
+            Long categoryId,
+            Long folderId,
             String audioPath,
             List<String> songTitles
     ) {

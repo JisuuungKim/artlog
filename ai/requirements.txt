@@ -18,9 +18,9 @@ pydub==0.25.1                   # 오디오 청크 분할 (gpt-4o-transcribe-dia
 # ─── Search Tool ─────────────────────────────────────────────
 tavily-python>=0.3.9            # TavilySearchResults 의존성
 
-# ─── PostgreSQL (psycopg3) & LangGraph Checkpointer ──────────
+# ─── PostgreSQL (psycopg3, pgvector) ─────────────────────────
 psycopg[binary,pool]>=3.2.3
-langgraph-checkpoint-postgres>=2.0.9
+pgvector>=0.3.0
 
 # ─── Settings & Env ──────────────────────────────────────────
 pydantic>=2.10.0

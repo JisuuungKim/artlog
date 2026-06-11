@@ -17,7 +17,7 @@ ai/
     │   └── models.py     # Request / Response Pydantic 모델
     ├── graph/
     │   ├── state.py      # TypedDict AgentState
-    │   └── workflow.py   # LangGraph 3단계 워크플로우 + PostgresSaver
+    │   └── workflow.py   # LangGraph 워크플로우 (stateless 컴파일)
     └── api/
         └── v1/
             └── lesson_notes.py  # POST /api/v1/lesson-notes/generate
@@ -41,7 +41,6 @@ POSTGRES_DB=artlog_db
 POSTGRES_USER=artlog_user
 POSTGRES_PASSWORD=<실제 비밀번호>
 OPENAI_API_KEY=<OpenAI API 키>
-AI_SCHEMA=ai_agent_schema   # LangGraph 체크포인트용 스키마 (자동 생성됨)
 ```
 
 > **참고**: Spring Boot docker-compose 기준 DB 기본값이 미리 채워져 있습니다.
@@ -61,7 +60,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-서버가 처음 시작될 때 PostgreSQL에 **`ai_agent_schema`** 스키마 및 LangGraph 체크포인트 테이블이 **자동 생성**됩니다.
+서버가 처음 시작될 때 PostgreSQL에 `pgvector` 확장 및 **`lesson_note_embedding`** 테이블이 **자동 생성**됩니다 (성장 리포트용).
 
 ### 4. API 문서
 
@@ -102,7 +101,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 }
 ```
 
-> `session_id`를 동일하게 보내면 LangGraph의 체크포인트를 통해 **대화 맥락이 유지**됩니다.
+> 워크플로우는 매 호출마다 fresh state로 실행됩니다 (체크포인터 미사용).
 
 ### `GET /health`
 
@@ -110,14 +109,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 ---
 
-## 데이터베이스 스키마 분리
+## 데이터베이스 사용
 
-| 스키마            | 용도                                    |
-| ----------------- | --------------------------------------- |
-| `public`          | Spring Boot JPA 엔티티 테이블 (기존)    |
-| `ai_agent_schema` | LangGraph 체크포인트 테이블 (자동 생성) |
+| 위치 | 용도 |
+| --- | --- |
+| `public.lesson_note_embedding` | pgvector 임베딩 (성장 리포트용). 앱 시작 시 자동 생성 |
 
-커넥션 풀의 `search_path` 를 `ai_agent_schema,public` 으로 설정하여 두 스키마를 안전하게 분리합니다.
+LangGraph 체크포인터는 사용하지 않습니다. 매 호출은 fresh state로 시작되며, 워크플로우의 상태는 응답이 반환되면 사라집니다.
 
 ---
 

@@ -94,6 +94,7 @@ export default function LessonDetail() {
               keyFeedback={data?.keyFeedback}
               practiceGuide={data?.practiceGuide}
               nextAssignment={data?.nextAssignment}
+              growthReport={data?.growthReport}
             />
           )}
           {activeTab === 'feedback' && (

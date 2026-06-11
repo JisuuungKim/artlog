@@ -43,13 +43,21 @@ export default function BottomSheet({
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
-      // 약간의 지연 후 애니메이션 시작
-      setTimeout(() => setIsAnimating(true), 10);
-    } else {
-      setIsAnimating(false);
-      // 애니메이션 완료 후 DOM에서 제거
-      setTimeout(() => setIsVisible(false), 300);
+      // 첫 프레임에서 translateY(100%) 상태가 paint된 뒤
+      // 다음 프레임에서 애니메이션 시작 (setTimeout은 paint 보장이 안 됨)
+      let innerRafId = 0;
+      const outerRafId = requestAnimationFrame(() => {
+        innerRafId = requestAnimationFrame(() => setIsAnimating(true));
+      });
+      return () => {
+        cancelAnimationFrame(outerRafId);
+        cancelAnimationFrame(innerRafId);
+      };
     }
+
+    setIsAnimating(false);
+    const closeTimer = setTimeout(() => setIsVisible(false), 300);
+    return () => clearTimeout(closeTimer);
   }, [isOpen]);
 
   if (!isVisible) return null;

@@ -99,8 +99,11 @@ export default function Mypage() {
   ];
 
   const serviceItems: readonly MypageSectionItem[] = [
-    { label: '이용약관' },
-    { label: '개인정보 처리 방침' },
+    { label: '이용약관', onClick: () => navigate('/auth/terms/1') },
+    {
+      label: '개인정보 처리 방침',
+      onClick: () => navigate('/auth/terms/2'),
+    },
     { label: '오픈소스 라이선스' },
   ];
 

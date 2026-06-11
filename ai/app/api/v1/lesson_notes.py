@@ -16,12 +16,19 @@ NEXT_STAGE_BY_COMPLETED_STAGE = {
     "correction": "feedback_analysis",
     "feedback_analysis": "lesson_note",
     "lesson_note": "review_lesson_note",
+    "review_lesson_note": "extract_improvement",
+    "extract_improvement": "embed_note",
+    "embed_note": "growth_report",
 }
 
 
 def build_initial_state(body: LessonNoteRequest) -> dict:
     return {
         "session_id": body.session_id,
+        "user_id": body.user_id,
+        "note_id": body.note_id,
+        "category_id": body.category_id,
+        "folder_id": body.folder_id,
         "audio_path": body.audio_path,
         "song_title": body.song_title,
         "keywords": [kw.model_dump() for kw in body.keywords],
@@ -31,6 +38,8 @@ def build_initial_state(body: LessonNoteRequest) -> dict:
         "review_feedback": None,
         "errors": [],
         "retry_count": 0,
+        "growth_report": None,
+        "improvements_noted": [],
     }
 
 
@@ -53,10 +62,7 @@ def format_sse(event: str, data: dict) -> str:
     "/generate",
     response_model=LessonNoteResponse,
     summary="레슨노트 생성",
-    description=(
-        "오디오 파일을 STT → 보정 → 레슨노트 생성 파이프라인으로 처리합니다. "
-        "`session_id` 를 LangGraph `thread_id` 로 사용하여 세션 간 맥락이 유지됩니다."
-    ),
+    description="오디오 파일을 STT → 보정 → 레슨노트 생성 파이프라인으로 처리합니다.",
 )
 async def generate_lesson_note(
     body: LessonNoteRequest,
@@ -71,12 +77,11 @@ async def generate_lesson_note(
         session_id, audio_path, song_title, keywords
     """
     workflow = request.app.state.workflow
-    config = {"configurable": {"thread_id": body.session_id}}
 
     initial_state = build_initial_state(body)
 
     try:
-        final_state = await workflow.ainvoke(initial_state, config=config)
+        final_state = await workflow.ainvoke(initial_state)
     except Exception as exc:
         raise HTTPException(
             status_code=500,
@@ -94,6 +99,7 @@ async def generate_lesson_note(
         session_id=body.session_id,
         transcript=final_state.get("transcript", ""),
         lesson_note=to_note_dict(lesson_note),
+        growth_report=final_state.get("growth_report"),
     )
 
 
@@ -107,7 +113,6 @@ async def stream_lesson_note_generation(
     request: Request,
 ) -> StreamingResponse:
     workflow = request.app.state.workflow
-    config = {"configurable": {"thread_id": body.session_id}}
     initial_state = build_initial_state(body)
 
     async def event_stream() -> AsyncIterator[str]:
@@ -124,7 +129,6 @@ async def stream_lesson_note_generation(
 
             async for update in workflow.astream(
                 initial_state,
-                config=config,
                 stream_mode="updates",
             ):
                 for node_name, node_update in update.items():
@@ -138,6 +142,8 @@ async def stream_lesson_note_generation(
                         and state.get("retry_count", 0) < MAX_REGEN_ATTEMPTS
                     ):
                         next_stage = "lesson_note"
+                    elif node_name == "review_lesson_note" and not state.get("needs_regeneration"):
+                        next_stage = "extract_improvement"
 
                     if next_stage and next_stage != last_emitted_stage:
                         yield progress(next_stage)
@@ -152,6 +158,7 @@ async def stream_lesson_note_generation(
                     "session_id": body.session_id,
                     "transcript": state.get("transcript", ""),
                     "lesson_note": to_note_dict(lesson_note),
+                    "growth_report": state.get("growth_report"),
                 },
             )
         except asyncio.CancelledError:

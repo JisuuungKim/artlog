@@ -1,7 +1,7 @@
 services:
   # 1. PostgreSQL DB 서비스
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: artlog-db
     restart: always
     environment:
@@ -52,7 +52,9 @@ services:
 
   # 3. AI Agent 서비스 (FastAPI + LangGraph)
   ai:
-    build: ./ai
+    build:
+      context: ./ai
+      target: dev
     container_name: artlog-ai
     ports:
       - "8001:8001"
@@ -67,7 +69,9 @@ services:
     restart: on-failure
 
   front:
-    build: ./front
+    build:
+      context: ./front
+      target: dev
     container_name: artlog-front
     working_dir: /app
     command: ["sh", "-lc", "npm install && npm run dev -- --host 0.0.0.0 --port 5173"]

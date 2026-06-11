@@ -3,7 +3,9 @@ import { Artlog, MainLogo } from '@/assets/logos';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
-const LOGIN_PROVIDERS = ['kakao', 'apple', 'google'] as const;
+// 카카오·애플 로그인은 백엔드 틀만 구현된 상태라 노출하지 않습니다. (구글만 노출)
+// const LOGIN_PROVIDERS = ['kakao', 'apple', 'google'] as const;
+const LOGIN_PROVIDERS = ['google'] as const;
 
 export default function Login() {
   const handleLogin = (provider: (typeof LOGIN_PROVIDERS)[number]) => {

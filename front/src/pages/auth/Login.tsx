@@ -1,5 +1,6 @@
 import { LoginButton } from '@/components/loginButton';
 import { Artlog, MainLogo } from '@/assets/logos';
+import { trackEvent } from '@/lib/mixpanel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
@@ -9,6 +10,7 @@ const LOGIN_PROVIDERS = ['google'] as const;
 
 export default function Login() {
   const handleLogin = (provider: (typeof LOGIN_PROVIDERS)[number]) => {
+    trackEvent('login_button_clicked', { provider, source: 'login_page' });
     window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 

@@ -1,7 +1,8 @@
 import AppBar from '@/components/appBar';
 import { BackGreyscale800Icon } from '@/assets/icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { trackEvent } from '@/lib/mixpanel';
 
 function NotificationToggle({
   checked,
@@ -34,6 +35,18 @@ export default function NotificationSettingsPage() {
   const navigate = useNavigate();
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
+  useEffect(() => {
+    trackEvent('push_notification_prompt_shown', { source: 'notification_settings' });
+  }, []);
+
+  const handleNotificationChange = (checked: boolean) => {
+    setIsNotificationEnabled(checked);
+    trackEvent(
+      checked ? 'push_notification_enabled' : 'push_notification_permission_denied',
+      { source: 'notification_settings' }
+    );
+  };
+
   return (
     <div className="min-h-screen bg-greyscale-bg-50">
       <AppBar
@@ -55,7 +68,7 @@ export default function NotificationSettingsPage() {
           </div>
           <NotificationToggle
             checked={isNotificationEnabled}
-            onChange={setIsNotificationEnabled}
+            onChange={handleNotificationChange}
           />
         </section>
       </main>

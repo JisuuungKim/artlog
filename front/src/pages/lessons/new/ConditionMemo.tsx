@@ -2,6 +2,7 @@ import Button from '@/components/button/Button';
 import TextInput, { useTextInput } from '@/components/textInput';
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { trackEvent } from '@/lib/mixpanel';
 
 export default function ConditionMemoPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function ConditionMemoPage() {
   }, [location.search]);
 
   const handleComplete = () => {
+    trackEvent('lesson_condition_entered', { has_condition: true });
     const searchParams = new URLSearchParams(location.search);
     searchParams.set('memo', conditionInput.value);
     navigate(`/lessons/new?${searchParams.toString()}`);

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { trackEvent } from '@/lib/mixpanel';
 import Tabs from '@/components/tabs';
 import Report from './components/Report';
 import Feedback from './components/Feedback';
@@ -25,6 +26,29 @@ export default function LessonDetail() {
   const [activeTab, setActiveTab] = useState(tabs[0].id);
   const isProcessing = data?.status === 'PROCESSING';
   const lessonSongs = data?.songTitles ?? [];
+
+  const viewedNoteIdRef = useRef<number | null>(null);
+  const lastTrackedTabKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!data?.id || viewedNoteIdRef.current === data.id) return;
+    viewedNoteIdRef.current = data.id;
+    trackEvent('lesson_note_viewed', {
+      lesson_note_id: data.id,
+      view_source: 'direct',
+    });
+  }, [data?.id]);
+
+  useEffect(() => {
+    if (!data?.id || isProcessing) return;
+    const key = `${data.id}-${activeTab}`;
+    if (lastTrackedTabKeyRef.current === key) return;
+    lastTrackedTabKeyRef.current = key;
+    trackEvent('lesson_note_tab_viewed', {
+      lesson_note_id: data.id,
+      tab_name: activeTab,
+    });
+  }, [activeTab, data?.id, isProcessing]);
   const formattedDate = data?.createdAt
     ? new Date(data.createdAt).toLocaleString('ko-KR', {
         year: 'numeric',

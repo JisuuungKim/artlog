@@ -4,6 +4,9 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';
 import App from './App.tsx';
+import { initMixpanel } from './lib/mixpanel.ts';
+
+initMixpanel();
 import MainPage from './pages/main/MainPage.tsx';
 import { lessonRoutes } from './routes/lesson.tsx';
 import { noteRoutes } from './routes/note.tsx';

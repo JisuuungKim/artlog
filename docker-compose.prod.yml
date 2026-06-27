@@ -26,7 +26,7 @@ services:
     ports: !override []
     volumes: !override
       - uploads:/uploads
-    env_file:
+    env_file: !override
       - ./back/.env.prod
 
   ai:
@@ -36,7 +36,7 @@ services:
     ports: !override []
     volumes: !override
       - uploads:/uploads
-    env_file:
+    env_file: !override
       - ./ai/.env.prod
 
   # 프론트는 Vercel 에서 호스팅하므로 운영에서는 컨테이너를 띄우지 않습니다.

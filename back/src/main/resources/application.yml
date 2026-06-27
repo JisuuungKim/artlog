@@ -38,6 +38,9 @@ spring:
 
 server:
   port: 8080
+  # Caddy(리버스 프록시) 뒤에서 X-Forwarded-Proto/Host 를 신뢰해 https/원본 호스트로 URL 생성.
+  # (OAuth redirect_uri 가 http 로 잘못 만들어지는 문제 방지)
+  forward-headers-strategy: framework
 
 jwt:
   secret: ${JWT_SECRET:change-me-to-a-very-long-random-string-for-jwt-signing}

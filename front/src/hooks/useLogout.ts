@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api, authTokenStorage } from '@/lib/api';
+import { resetMixpanel } from '@/lib/mixpanel';
 
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -16,6 +17,7 @@ export function useLogout() {
     onSuccess: () => {
       authTokenStorage.clear();
       queryClient.clear();
+      resetMixpanel();
       navigate('/');
     },
   });

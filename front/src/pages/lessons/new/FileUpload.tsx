@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { trackEvent } from '@/lib/mixpanel';
 import AppBar from '@/components/appBar';
 import Button from '@/components/button/Button';
 import Chip from '@/components/common/Chip';
@@ -46,6 +47,15 @@ export default function FileUpload() {
   const [uploadedAudioPath, setUploadedAudioPath] = useState<string | null>(null);
 
   const [noLessonSong, setNoLessonSong] = useState(false);
+
+  const submittedTrackingRef = useRef<{
+    instrument_type: string;
+    has_song: boolean;
+    has_condition: boolean;
+    category_count: number;
+    categories: string[];
+    start_ms: number;
+  } | null>(null);
 
   const [bottomSheetTitle, setBottomSheetTitle] = useState('카테고리');
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
@@ -176,6 +186,13 @@ export default function FileUpload() {
 
   // 곡 선택 버튼 클릭 핸들러
   const handleSongButtonClick = (songId: string) => {
+    const isAdding = !selectedSongIds.includes(songId);
+    if (isAdding) {
+      trackEvent('lesson_song_selected', {
+        instrument_type: selectedCategoryName,
+        song_input_type: 'existing',
+      });
+    }
     setSelectedSongIds(previous =>
       previous.includes(songId)
         ? previous.filter(id => id !== songId)
@@ -205,6 +222,10 @@ export default function FileUpload() {
       { title, categoryId: Number(effectiveSelectedCategoryId) },
       {
         onSuccess: created => {
+          trackEvent('lesson_song_selected', {
+            instrument_type: selectedCategoryName,
+            song_input_type: 'new',
+          });
           const createdId = String(created.id);
           setSelectedSongIds(previous =>
             previous.includes(createdId) ? previous : [...previous, createdId]
@@ -249,6 +270,14 @@ export default function FileUpload() {
       return;
     }
 
+    trackEvent('lesson_note_form_submitted', {
+      instrument_type: selectedCategoryName,
+      has_song: selectedSongIds.length > 0,
+      has_condition: Boolean(memoText.trim()),
+      category_count: categoriesData.length,
+      categories: categoriesData.map(c => c.name),
+    });
+
     // 첫 번째로 보여줄 모달 결정
     if (modalsVisibility.iphoneInfo) {
       setCurrentModal('iphoneInfo');
@@ -280,6 +309,23 @@ export default function FileUpload() {
       return;
     }
 
+    const trackingParams = {
+      instrument_type: selectedCategoryName,
+      has_song: selectedSongIds.length > 0,
+      has_condition: Boolean(memoText.trim()),
+      category_count: categoriesData.length,
+      categories: categoriesData.map(c => c.name),
+      start_ms: Date.now(),
+    };
+    submittedTrackingRef.current = trackingParams;
+
+    trackEvent('lesson_note_generation_started', {
+      instrument_type: trackingParams.instrument_type,
+      has_song: trackingParams.has_song,
+      has_condition: trackingParams.has_condition,
+      category_count: trackingParams.category_count,
+    });
+
     const songTitles = selectedSongIds
       .map(getSongTitle)
       .filter((songTitle): songTitle is string => Boolean(songTitle));
@@ -295,6 +341,19 @@ export default function FileUpload() {
       },
       {
         onSuccess: created => {
+          const params = submittedTrackingRef.current;
+          if (params) {
+            trackEvent('lesson_note_created', {
+              lesson_note_id: created.id,
+              instrument_type: params.instrument_type,
+              has_song: params.has_song,
+              has_condition: params.has_condition,
+              category_count: params.category_count,
+              categories: params.categories,
+              generation_duration_ms: Date.now() - params.start_ms,
+            });
+            submittedTrackingRef.current = null;
+          }
           sessionStorage.removeItem('pendingLessonAudio');
           // 생성 후 detail에서 뒤로가기 → 홈이 되도록
           // 현재 /lessons/new(또는 그 위 condition 체인)를 홈으로 치환한 뒤 detail push

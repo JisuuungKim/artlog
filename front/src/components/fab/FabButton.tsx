@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { UploadGreyscale800Icon } from '@/assets/icons';
 import { useNavigate } from 'react-router-dom';
 import { useUploadLessonAudio } from '@/hooks/useLessonNote';
+import { trackEvent } from '@/lib/mixpanel';
 
 export interface FabButtonProps {
   className?: string;
@@ -29,6 +30,7 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
 
     uploadLessonAudioMutation.mutate(file, {
       onSuccess: uploaded => {
+        trackEvent('lesson_note_create_started', { source: 'fab' });
         sessionStorage.setItem(
           'pendingLessonAudio',
           JSON.stringify({ uploadedAudioPath: uploaded.uploadedAudioPath })

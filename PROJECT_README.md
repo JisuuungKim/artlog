@@ -621,14 +621,14 @@ docker compose up --build
 
 배포가 두 군데로 분리됩니다 (같은 루트도메인의 두 호스트).
 
-- **프론트** (`artlog.com`) → **Vercel**. push 마다 정적 빌드 + CDN + 자동 HTTPS. `VITE_API_BASE_URL` 을 빌드 타임에 주입(`https://api.artlog.com`). SPA fallback 은 `front/vercel.json`.
-- **백엔드 스택** (`api.artlog.com`) → **AWS EC2 단일 VPS**. `db`/`redis`/`app`/`ai`/`caddy` 를 docker compose 한 묶음으로 띄우고, Caddy 가 API 도메인에 자동 HTTPS + 모든 경로를 `app:8080` 으로 프록시. 프론트 컨테이너는 운영에서 띄우지 않음.
+- **프론트** (`artlog.site`) → **Vercel**. push 마다 정적 빌드 + CDN + 자동 HTTPS. `VITE_API_BASE_URL` 을 빌드 타임에 주입(`https://api.artlog.site`). SPA fallback 은 `front/vercel.json`.
+- **백엔드 스택** (`api.artlog.site`) → **AWS EC2 단일 VPS**. `db`/`redis`/`app`/`ai`/`caddy` 를 docker compose 한 묶음으로 띄우고, Caddy 가 API 도메인에 자동 HTTPS + 모든 경로를 `app:8080` 으로 프록시. 프론트 컨테이너는 운영에서 띄우지 않음.
 
 프론트와 API 가 **다른 호스트(cross-origin)** 이므로 세 가지가 맞물려야 합니다:
 
 - **CORS**: 백엔드 `FRONTEND_BASE_URL` 단일 origin 허용 (`SecurityConfig.corsConfigurationSource`). 프리뷰 도메인은 미허용.
 - **refresh 쿠키 SameSite**: 같은 루트도메인이면 `Lax`, 다른 사이트(`*.vercel.app`)면 `None`. 환경변수 `REFRESH_COOKIE_SAME_SITE` 로 제어 (`RefreshTokenCookieService`).
-- **OAuth redirect**: 인증/콜백(`/oauth2/**`, `/login/oauth2/**`)은 API 도메인에서 처리, 성공 후 프론트 도메인(`OAUTH2_AUTHORIZED_REDIRECT_URI`)으로 redirect. OAuth 콘솔의 redirect URI 는 `https://api.artlog.com/login/oauth2/code/{provider}`.
+- **OAuth redirect**: 인증/콜백(`/oauth2/**`, `/login/oauth2/**`)은 API 도메인에서 처리, 성공 후 프론트 도메인(`OAUTH2_AUTHORIZED_REDIRECT_URI`)으로 redirect. OAuth 콘솔의 redirect URI 는 `https://api.artlog.site/login/oauth2/code/{provider}`.
 
 | 위치 | 역할 |
 |---|---|
@@ -688,7 +688,7 @@ docker compose up --build
 
 ## 13. 최근 주요 변경 (자세한 내용은 DEV_LOG_README.md / RAG_README.md)
 
-- **2026-06-07** 프론트 배포 분리: 프론트를 단일 VPS 의 Caddy/nginx 호스팅에서 **Vercel** 로 이전. API 는 VPS(`api.artlog.com`)에 유지하고 Caddy 는 `app:8080` 전량 프록시로 단순화. cross-origin 대응으로 refresh 쿠키 SameSite 를 환경변수화(`REFRESH_COOKIE_SAME_SITE`, 기본 Strict / 운영 Lax). prod compose 에서 front 컨테이너 제외(`disabled` 프로필), `front/vercel.json` 복원.
+- **2026-06-07** 프론트 배포 분리: 프론트를 단일 VPS 의 Caddy/nginx 호스팅에서 **Vercel** 로 이전. API 는 VPS(`api.artlog.site`)에 유지하고 Caddy 는 `app:8080` 전량 프록시로 단순화. cross-origin 대응으로 refresh 쿠키 SameSite 를 환경변수화(`REFRESH_COOKIE_SAME_SITE`, 기본 Strict / 운영 Lax). prod compose 에서 front 컨테이너 제외(`disabled` 프로필), `front/vercel.json` 복원.
 - **2026-05-05** 배포 모델 전환: Railway/Vercel → AWS EC2 단일 VPS + Docker Compose + Caddy(자동 HTTPS) + systemd. `docker-compose.prod.yml`, `deploy/{Caddyfile,artlog.service,bootstrap.sh,deploy.sh}`, GHA `deploy.yml` 추가. `railway.toml`, `vercel.json` 제거.
 - **2026-05-05** 오디오 영구 저장 폐지: AI 성공 시 `/uploads`의 원본 파일 즉시 삭제 + `recordingUrl=null`. 실패 시는 retry 위해 유지하고, 노트 삭제 시 함께 정리. 프론트는 `recordingUrl`을 사용하지 않으므로 사용자 영향 없음.
 - **2026-05-05** LangGraph 체크포인터 제거(`ai_agent_schema` 삭제). 미사용 데드코드였고, 동일 `thread_id` 재처리 시 잠재적 resume 버그까지 함께 제거. 워크플로우는 stateless 컴파일.

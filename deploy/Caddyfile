@@ -1,4 +1,4 @@
-# API 전용 도메인 (예: api.artlog.com). 프론트는 Vercel 에서 별도 호스팅하므로
+# API 전용 도메인 (예: api.artlog.site). 프론트는 Vercel 에서 별도 호스팅하므로
 # 여기서는 Spring 백엔드(app:8080)만 프록시합니다.
 # DOMAIN, ACME_EMAIL 은 docker-compose.prod.yml 의 environment 로 주입됩니다.
 

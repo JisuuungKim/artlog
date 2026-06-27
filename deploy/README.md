@@ -10,16 +10,16 @@
 
 | 역할 | 도메인 | 호스팅 |
 |---|---|---|
-| 프론트 | `artlog.com` (또는 `www.artlog.com`) | Vercel |
-| API | `api.artlog.com` | EC2 / Caddy |
+| 프론트 | `artlog.site` (또는 `www.artlog.site`) | Vercel |
+| API | `api.artlog.site` | EC2 / Caddy |
 
-> 같은 루트도메인(`artlog.com`)이라 refresh token 쿠키가 same-site 로 동작합니다
+> 같은 루트도메인(`artlog.site`)이라 refresh token 쿠키가 same-site 로 동작합니다
 > (`REFRESH_COOKIE_SAME_SITE=Lax`). 프론트를 `*.vercel.app` 같은 다른 사이트로 두면
 > `REFRESH_COOKIE_SAME_SITE=None` 으로 바꿔야 로그인 갱신이 됩니다.
 
 ## 0. 준비물
 
-- 도메인 1개 (예: `artlog.com`) — 프론트/`api` 서브도메인에 사용
+- 도메인 1개 (예: `artlog.site`) — 프론트/`api` 서브도메인에 사용
 - Vercel 계정 (GitHub 연동)
 - 가입된 OAuth 앱 (Google / Kakao / Apple) — redirect URI 추가 등록 필요
 - AWS 계정
@@ -41,10 +41,10 @@
 ## 2. DNS 설정
 
 도메인 DNS 에 레코드 2개:
-- `api.artlog.com` → A 레코드 → EIP 주소 (EC2/Caddy)
-- `artlog.com` (프론트) → Vercel 안내대로 (보통 apex 는 A `76.76.21.21`, `www` 는 CNAME `cname.vercel-dns.com`). 정확한 값은 Vercel 의 Domains 화면이 알려줍니다.
+- `api.artlog.site` → A 레코드 → EIP 주소 (EC2/Caddy)
+- `artlog.site` (프론트) → Vercel 안내대로 (보통 apex 는 A `76.76.21.21`, `www` 는 CNAME `cname.vercel-dns.com`). 정확한 값은 Vercel 의 Domains 화면이 알려줍니다.
 
-전파 후 `dig api.artlog.com` 으로 API 도메인 확인.
+전파 후 `dig api.artlog.site` 으로 API 도메인 확인.
 
 ## 3. VPS 부트스트랩
 
@@ -72,7 +72,7 @@ sudo cp back/.env.prod.example back/.env.prod
 sudo cp ai/.env.prod.example   ai/.env.prod
 ```
 
-세 파일을 열어 값 채우기 (`<API_DOMAIN>`=`api.artlog.com`, `<FRONT_DOMAIN>`=`artlog.com`):
+세 파일을 열어 값 채우기 (`<API_DOMAIN>`=`api.artlog.site`, `<FRONT_DOMAIN>`=`artlog.site`):
 - `.env.prod` — `DOMAIN=<API_DOMAIN>`, `ACME_EMAIL`, `POSTGRES_PASSWORD`
 - `back/.env.prod` — `JWT_SECRET`(긴 랜덤), `SPRING_DATASOURCE_PASSWORD`(= 위와 동일),
   `FRONTEND_BASE_URL=https://<FRONT_DOMAIN>`, `OAUTH2_*=https://<FRONT_DOMAIN>/...`,
@@ -90,7 +90,7 @@ OAuth 인증 콜백은 **API 도메인**에서 처리됩니다. 각 콘솔에 �
 - `https://<API_DOMAIN>/login/oauth2/code/kakao`
 - `https://<API_DOMAIN>/login/oauth2/code/apple`
 
-> 즉 `https://api.artlog.com/login/oauth2/code/...` 입니다 (프론트 도메인 아님).
+> 즉 `https://api.artlog.site/login/oauth2/code/...` 입니다 (프론트 도메인 아님).
 
 ## 6. 첫 기동
 
@@ -185,10 +185,10 @@ sudo systemctl start artlog
    - Build Command: `npm run build` / Output Directory: `dist` (기본값)
    - `front/vercel.json` 이 SPA fallback(`/(.*) → /index.html`)을 처리합니다.
 3. **환경변수** (Settings → Environment Variables, Production):
-   - `VITE_API_BASE_URL = https://api.artlog.com`
+   - `VITE_API_BASE_URL = https://api.artlog.site`
    - Vite 는 **빌드 타임**에 주입하므로, 값 변경 시 반드시 재배포(Redeploy)해야 반영됩니다.
-4. **커스텀 도메인**: Settings → Domains 에서 `artlog.com`(+`www`) 추가 → 안내하는 DNS 레코드 등록.
-5. **배포 확인**: `https://artlog.com` 접속 → 로그인 → 노트 생성까지 동작 확인.
+4. **커스텀 도메인**: Settings → Domains 에서 `artlog.site`(+`www`) 추가 → 안내하는 DNS 레코드 등록.
+5. **배포 확인**: `https://artlog.site` 접속 → 로그인 → 노트 생성까지 동작 확인.
    - 콘솔에 CORS 에러가 보이면 `FRONTEND_BASE_URL`(백엔드) 점검.
    - 로그인 직후엔 되는데 새로고침하면 풀리면 refresh 쿠키 `SameSite` 점검.
 

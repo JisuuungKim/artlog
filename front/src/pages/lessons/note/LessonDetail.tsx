@@ -58,7 +58,7 @@ export default function LessonDetail() {
         hour: 'numeric',
         minute: '2-digit',
       })
-    : '2025. 01. 01. (월) 오후 5:00';
+    : '';
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -88,14 +88,12 @@ export default function LessonDetail() {
         leftIconClick={() => navigate(-1)}
       />
       <LessonTitleCard
-        title={data?.title ?? '2026.01.20. 레슨노트'}
+        title={data?.title ?? ''}
         formattedDate={formattedDate}
         categoryLabel={data?.categoryName ?? '카테고리 없음'}
         folderName={data?.folderName ?? '모든 노트'}
         lessonSongs={lessonSongs}
-        conditionText={
-          data?.conditionText ?? '컨디션은 좋았지만 목이 까끌거리고 아픔'
-        }
+        conditionText={data?.conditionText ?? ''}
         isExpanded={isExpanded}
         showAllSongs={showAllSongs}
         onToggleExpanded={toggleExpanded}

@@ -115,6 +115,7 @@ export default function Home() {
                       key={note.id}
                       title={note.title}
                       onRetry={() => retryLessonNoteProcessing.mutate(note.id)}
+                      onClose={() => deleteLessonNote.mutate(note.id)}
                     />
                   );
                 }

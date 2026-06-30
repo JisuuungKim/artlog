@@ -91,33 +91,37 @@ export default function LessonTitleCard({
             <Chip variant="filter">{folderName}</Chip>
           </LessonMetaRow>
 
-          <LessonMetaRow label="레슨 곡">
-            {lessonSongs.length >= 2 && !showAllSongs ? (
-              <>
-                <Chip variant="filter">{lessonSongs[0]}</Chip>
-                <Chip variant="default" onClick={onToggleSongs}>
-                  +{lessonSongs.length - 1}
-                </Chip>
-              </>
-            ) : (
-              <>
-                {lessonSongs.map(song => (
-                  <Chip key={song} variant="filter">
-                    {song}
-                  </Chip>
-                ))}
-                {lessonSongs.length >= 2 && showAllSongs ? (
+          {lessonSongs.length > 0 ? (
+            <LessonMetaRow label="레슨 곡">
+              {lessonSongs.length >= 2 && !showAllSongs ? (
+                <>
+                  <Chip variant="filter">{lessonSongs[0]}</Chip>
                   <Chip variant="default" onClick={onToggleSongs}>
-                    접기
+                    +{lessonSongs.length - 1}
                   </Chip>
-                ) : null}
-              </>
-            )}
-          </LessonMetaRow>
+                </>
+              ) : (
+                <>
+                  {lessonSongs.map(song => (
+                    <Chip key={song} variant="filter">
+                      {song}
+                    </Chip>
+                  ))}
+                  {lessonSongs.length >= 2 && showAllSongs ? (
+                    <Chip variant="default" onClick={onToggleSongs}>
+                      접기
+                    </Chip>
+                  ) : null}
+                </>
+              )}
+            </LessonMetaRow>
+          ) : null}
 
-          <LessonMetaRow label="컨디션">
-            <Chip variant="default">{conditionText}</Chip>
-          </LessonMetaRow>
+          {conditionText.trim() ? (
+            <LessonMetaRow label="컨디션">
+              <Chip variant="default">{conditionText}</Chip>
+            </LessonMetaRow>
+          ) : null}
         </div>
       ) : null}
     </div>

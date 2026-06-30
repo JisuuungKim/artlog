@@ -17,9 +17,12 @@ import {
   PlusGreyscale500Icon,
 } from '@/assets/icons';
 import SongSelector from '@/pages/lessons/new/components/SongSelector';
+import AudioUploadProgress, {
+  type AudioUploadStatus,
+} from '@/pages/lessons/new/components/AudioUploadProgress';
 import InputButton from '@/components/common/InputButton';
 import DialogModal from '@/components/modal/DialogModal';
-import { useCreateLessonNote } from '@/hooks/useLessonNote';
+import { useCreateLessonNote, useUploadLessonAudio } from '@/hooks/useLessonNote';
 import {
   useCategories,
   useCreateSong,
@@ -36,6 +39,7 @@ export default function FileUpload() {
   const navigate = useNavigate();
   const location = useLocation();
   const createLessonNoteMutation = useCreateLessonNote();
+  const uploadAudioMutation = useUploadLessonAudio();
   const createSongMutation = useCreateSong();
   const { data: categoriesData = [] } = useCategories();
   const { effectiveSelectedCategoryId, setSelectedCategoryId } =
@@ -45,6 +49,15 @@ export default function FileUpload() {
   const [selectedFolderId, setSelectedFolderId] = useState('');
   const [memoText, setMemoText] = useState('');
   const [uploadedAudioPath, setUploadedAudioPath] = useState<string | null>(null);
+
+  // 녹음 파일 백그라운드 업로드 상태
+  const [audioFileName, setAudioFileName] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<AudioUploadStatus | 'idle'>(
+    'idle'
+  );
+  const pendingAudioFileRef = useRef<File | null>(null);
+  const uploadStartedRef = useRef(false);
 
   const [noLessonSong, setNoLessonSong] = useState(false);
 
@@ -125,17 +138,73 @@ export default function FileUpload() {
     }
   }, [location.search]);
 
+  // 녹음 파일을 백그라운드로 업로드하고 진행률을 갱신한다.
+  const runAudioUpload = (file: File) => {
+    pendingAudioFileRef.current = file;
+    setAudioFileName(file.name);
+    setUploadProgress(0);
+    setUploadStatus('uploading');
+
+    uploadAudioMutation.mutate(
+      {
+        audio: file,
+        // 전송이 끝나도 서버 처리가 남아 있으므로 95%까지만 채우고
+        // 응답을 받은 뒤 100%로 마무리한다. (지나치게 실시간으로 보이지 않게)
+        onProgress: percent => setUploadProgress(Math.min(percent, 95)),
+      },
+      {
+        onSuccess: uploaded => {
+          setUploadedAudioPath(uploaded.uploadedAudioPath);
+          setUploadProgress(100);
+          setUploadStatus('done');
+          sessionStorage.setItem(
+            'pendingLessonAudio',
+            JSON.stringify({
+              uploadedAudioPath: uploaded.uploadedAudioPath,
+              fileName: file.name,
+            })
+          );
+        },
+        onError: () => {
+          setUploadStatus('error');
+        },
+      }
+    );
+  };
+
   useEffect(() => {
-    const pendingAudio = sessionStorage.getItem('pendingLessonAudio');
-    if (!pendingAudio) {
+    if (uploadStartedRef.current) {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(pendingAudio) as { uploadedAudioPath?: string };
-      setUploadedAudioPath(parsed.uploadedAudioPath ?? null);
-    } catch {
-      setUploadedAudioPath(null);
+    // 1) 컨디션 페이지를 다녀온 경우: 이미 업로드된 경로를 복구한다.
+    const pendingAudio = sessionStorage.getItem('pendingLessonAudio');
+    if (pendingAudio) {
+      uploadStartedRef.current = true;
+      try {
+        const parsed = JSON.parse(pendingAudio) as {
+          uploadedAudioPath?: string;
+          fileName?: string;
+        };
+        if (parsed.uploadedAudioPath) {
+          setUploadedAudioPath(parsed.uploadedAudioPath);
+          setAudioFileName(parsed.fileName ?? null);
+          setUploadProgress(100);
+          setUploadStatus('done');
+          return;
+        }
+      } catch {
+        // 무시하고 아래 업로드 분기로 진행
+      }
+    }
+
+    // 2) FAB에서 막 넘어온 경우: 라우터 state의 파일을 비동기 업로드한다.
+    const pendingFile = (
+      location.state as { pendingAudioFile?: File } | null
+    )?.pendingAudioFile;
+    if (pendingFile) {
+      uploadStartedRef.current = true;
+      runAudioUpload(pendingFile);
     }
   }, []);
 
@@ -420,6 +489,26 @@ export default function FileUpload() {
         leftIcon={<BackGreyscale800Icon className="h-6 w-6" />}
         leftIconClick={() => navigate(-1)}
       />
+      {/* 녹음 파일 업로드 진행률 */}
+      {uploadStatus !== 'idle' && audioFileName && (
+        <div className="px-5 pt-2">
+          <AudioUploadProgress
+            fileName={audioFileName}
+            progress={uploadProgress}
+            status={uploadStatus}
+            onRetry={
+              uploadStatus === 'error'
+                ? () => {
+                    const file = pendingAudioFileRef.current;
+                    if (file) {
+                      runAudioUpload(file);
+                    }
+                  }
+                : undefined
+            }
+          />
+        </div>
+      )}
       {/* Content */}
       <div className="flex-1 px-5">
         {/* Note Title Section */}

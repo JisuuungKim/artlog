@@ -2,7 +2,6 @@ import { PlusGreyscale50Icon } from '@/assets/icons';
 import { useRef, useState } from 'react';
 import { UploadGreyscale800Icon } from '@/assets/icons';
 import { useNavigate } from 'react-router-dom';
-import { useUploadLessonAudio } from '@/hooks/useLessonNote';
 import { trackEvent } from '@/lib/mixpanel';
 
 export interface FabButtonProps {
@@ -13,7 +12,6 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const uploadLessonAudioMutation = useUploadLessonAudio();
 
   const toggle = () => {
     setIsExpanded(!isExpanded);
@@ -28,17 +26,12 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
       return;
     }
 
-    uploadLessonAudioMutation.mutate(file, {
-      onSuccess: uploaded => {
-        trackEvent('lesson_note_create_started', { source: 'fab' });
-        sessionStorage.setItem(
-          'pendingLessonAudio',
-          JSON.stringify({ uploadedAudioPath: uploaded.uploadedAudioPath })
-        );
-        setIsExpanded(false);
-        navigate('/lessons/new');
-      },
-    });
+    // 업로드 완료를 기다리지 않고 곧바로 작성 화면으로 이동한다.
+    // 실제 업로드는 작성 화면에서 백그라운드로 진행된다.
+    trackEvent('lesson_note_create_started', { source: 'fab' });
+    sessionStorage.removeItem('pendingLessonAudio');
+    setIsExpanded(false);
+    navigate('/lessons/new', { state: { pendingAudioFile: file } });
   };
 
   return (
@@ -74,7 +67,6 @@ const FabButton: React.FC<FabButtonProps> = ({ className = '' }) => {
         <button
           onClick={toggle}
           className={`bg-primary-500 overflow-hidden relative rounded-full w-14 h-14 flex items-center justify-center ${className}`}
-          disabled={uploadLessonAudioMutation.isPending}
         >
           <PlusGreyscale50Icon
             className={`w-6 h-6 transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}

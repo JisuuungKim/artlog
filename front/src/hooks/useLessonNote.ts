@@ -113,15 +113,28 @@ type CreateLessonPayload = {
   uploadedAudioPath?: string;
 };
 
+type UploadLessonAudioInput = {
+  audio: File;
+  onProgress?: (percent: number) => void;
+};
+
 export function useUploadLessonAudio() {
   return useMutation({
-    mutationFn: async (audio: File) => {
+    mutationFn: async ({ audio, onProgress }: UploadLessonAudioInput) => {
       const formData = new FormData();
       formData.append('audio', audio);
 
       const response = await api.post<ApiResponse<UploadedLessonAudio>>(
         '/api/v1/notes/audio-upload',
-        formData
+        formData,
+        {
+          onUploadProgress: event => {
+            if (!onProgress || !event.total) {
+              return;
+            }
+            onProgress(Math.round((event.loaded / event.total) * 100));
+          },
+        }
       );
 
       return response.data.data;

@@ -13,7 +13,8 @@ langchain-teddynote>=0.1.0      # 그래프 시각화 (visualize_graph)
 openai>=1.30.0                  # Whisper API (client.audio.transcriptions)
 
 # ─── Audio ───────────────────────────────────────────────────
-pydub==0.25.1                   # 오디오 청크 분할 (gpt-4o-transcribe-diarize 1400초 제한 우회)
+# 오디오 청크 분할/다운샘플은 ffmpeg(+ffprobe) CLI 를 직접 호출합니다 (stt_agent.py).
+# 전체 PCM 을 메모리에 올리지 않기 위해 pydub 대신 ffmpeg 스트리밍 처리를 사용합니다.
 
 # ─── Search Tool ─────────────────────────────────────────────
 tavily-python>=0.3.9            # TavilySearchResults 의존성

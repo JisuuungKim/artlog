@@ -17,7 +17,7 @@ FROM python:3.11-slim AS runtime-base
 
 WORKDIR /app
 
-# ffmpeg: pydub 청크 분할에 필요 (런타임에도 설치)
+# ffmpeg/ffprobe: 오디오 다운샘플·청크 분할에 필요 (stt_agent.py 가 CLI 직접 호출)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*

@@ -55,7 +55,7 @@ Artlog는 보컬·피아노·연기 등 예술 레슨 녹음본을 업로드하�
 |---|---|
 | Front | React 19, TypeScript 5.9, Vite 7, React Router 7, TanStack Query 5, Zustand 5, Axios 1, Tailwind 4 |
 | Back | Spring Boot 3.4.3, Java 17, Spring Security, Spring Data JPA, Spring Data Redis, JJWT 0.12, springdoc-openapi 2.8, hypersistence-utils 3.9 |
-| AI | FastAPI, Python 3.11, LangGraph ≥0.2.56, LangChain Core/OpenAI/Community, OpenAI SDK (Whisper / GPT / embeddings), psycopg3 + pool, pgvector, pydub, Tavily |
+| AI | FastAPI, Python 3.11, LangGraph ≥0.2.56, LangChain Core/OpenAI/Community, OpenAI SDK (Whisper / GPT / embeddings), psycopg3 + pool, pgvector, ffmpeg/ffprobe(CLI, 오디오 다운샘플·청크 분할), Tavily |
 | DB | PostgreSQL 15 (`pgvector/pgvector:pg15`) |
 | Cache/Queue | Redis 7-alpine |
 | 배포 | Front → **Vercel** (정적 빌드 + CDN), Back/AI/DB/Redis/Caddy → **AWS EC2 단일 VPS** (Docker Compose + Caddy 자동 HTTPS + systemd). pgvector는 `CREATE EXTENSION vector` 수동 활성화 필요 |
@@ -481,7 +481,7 @@ created_at   TIMESTAMPTZ DEFAULT NOW()
 
 | 노드 | 역할 |
 |---|---|
-| `stt` | OpenAI Whisper / gpt-4o-transcribe-diarize. 5분 청크 + 5초 overlap, 최대 3개 병렬 |
+| `stt` | OpenAI gpt-4o-transcribe-diarize. ffmpeg로 16kHz mono 다운샘플 후 디스크에 5분 청크(+5초 overlap) 분할, 최대 3개 병렬. 전체 PCM을 메모리에 올리지 않음(저메모리 인스턴스 OOM 방지) |
 | `correction` | STT 텍스트 보정 |
 | `feedback_analysis` | 선생님 발화 묶음 + 관련 가사 + 분석 + 태그 추출 (`AnalyzedFeedback`) |
 | `lesson_note` | 최종 레슨노트(`LessonNoteResponse`) 생성: key_feedback / practice_guide / next_assignment / feedback_card / lyrics_feedback |
@@ -688,6 +688,7 @@ docker compose up --build
 
 ## 13. 최근 주요 변경 (자세한 내용은 DEV_LOG_README.md / RAG_README.md)
 
+- **2026-06-30** STT 메모리 최적화: pydub(`AudioSegment.from_file`, 전체 PCM 메모리 로드) 제거 → ffprobe로 길이 측정 + ffmpeg로 16kHz mono 다운샘플하며 청크를 디스크 임시 파일로 직접 추출(워커당 1개씩만 메모리에 적재). 2GB·스왑 0 인스턴스에서 긴 m4a 처리 시 발생하던 OOM(프로세스 재시작) 해결. `requirements.txt`에서 pydub 제거.
 - **2026-06-07** 프론트 배포 분리: 프론트를 단일 VPS 의 Caddy/nginx 호스팅에서 **Vercel** 로 이전. API 는 VPS(`api.artlog.site`)에 유지하고 Caddy 는 `app:8080` 전량 프록시로 단순화. cross-origin 대응으로 refresh 쿠키 SameSite 를 환경변수화(`REFRESH_COOKIE_SAME_SITE`, 기본 Strict / 운영 Lax). prod compose 에서 front 컨테이너 제외(`disabled` 프로필), `front/vercel.json` 복원.
 - **2026-05-05** 배포 모델 전환: Railway/Vercel → AWS EC2 단일 VPS + Docker Compose + Caddy(자동 HTTPS) + systemd. `docker-compose.prod.yml`, `deploy/{Caddyfile,artlog.service,bootstrap.sh,deploy.sh}`, GHA `deploy.yml` 추가. `railway.toml`, `vercel.json` 제거.
 - **2026-05-05** 오디오 영구 저장 폐지: AI 성공 시 `/uploads`의 원본 파일 즉시 삭제 + `recordingUrl=null`. 실패 시는 retry 위해 유지하고, 노트 삭제 시 함께 정리. 프론트는 `recordingUrl`을 사용하지 않으므로 사용자 영향 없음.

@@ -47,10 +47,20 @@ def _get_llm() -> ChatOpenAI:
 
 # ── 검색 도구 (코드 레벨에서 직접 호출) ──────────────────────────────
 def _search_lyrics(song_titles: list[str]) -> str:
-    """song_title 리스트를 순회하며 Tavily로 가사를 검색하고 결과를 취합합니다."""
-    from langchain_community.tools.tavily_search import TavilySearchResults
+    """song_title 리스트를 순회하며 Tavily로 가사를 검색하고 결과를 취합합니다.
 
-    tool = TavilySearchResults(max_results=3)
+    가사 검색은 보정 품질을 높이는 부가 기능이다. TAVILY_API_KEY 누락 등으로
+    도구 초기화나 검색이 실패하더라도 보정 단계(및 레슨노트 생성) 전체가 실패하지
+    않도록, 실패는 '(검색 실패)'로 흡수하고 LLM이 가사 컨텍스트 없이 교정만 수행한다.
+    """
+    try:
+        from langchain_community.tools.tavily_search import TavilySearchResults
+
+        tool = TavilySearchResults(max_results=3)
+    except Exception as e:
+        logger.warning("[correction_node] Tavily 초기화 실패, 가사 검색 생략: %s", e)
+        return "\n\n".join(f"### {title}\n(검색 실패)" for title in song_titles)
+
     results_text = []
 
     for title in song_titles:

@@ -587,6 +587,7 @@ created_at   TIMESTAMPTZ DEFAULT NOW()
 |---|---|---|
 | `POSTGRES_HOST` / `PORT` / `DB` / `USER` / `PASSWORD` | localhost/5432/artlog_db/artlog_user/— | psycopg3 DSN 구성 |
 | `OPENAI_API_KEY` | — | 필수 |
+| `TAVILY_API_KEY` | — | `correction_node` 가사 검색용. langchain이 OS 환경변수에서 직접 읽음(Settings 미선언). 누락 시 가사 검색만 생략되고 생성은 계속 |
 | `LANGSMITH_TRACING` | false | "true"로 설정 시 추적 활성화 |
 | `LANGSMITH_API_KEY` / `LANGSMITH_PROJECT` / `LANGSMITH_ENDPOINT` | — / artlog-ai / .smith.langchain.com | |
 | `DB_POOL_MIN_SIZE` / `MAX_SIZE` | 2 / 10 | psycopg pool |

@@ -125,9 +125,10 @@ public class NoteService {
                 .orElseThrow(() -> ArtlogException.notFound("사용자를 찾을 수 없습니다."));
         Category category = categoryFolderPolicyService.resolveUserInterestCategory(user, req.categoryId());
         user.refreshMonthlyLessonNoteQuota(OffsetDateTime.now());
-        if (!user.hasRemainingLessonNoteQuota()) {
-            throw ArtlogException.badRequest("이번 달 레슨노트 생성 횟수를 모두 사용했습니다.");
-        }
+        // TODO(테스트용, 복구 필요): 레슨노트 생성 횟수 제한 임시 해제. 아래 주석 해제로 원복.
+        // if (!user.hasRemainingLessonNoteQuota()) {
+        //     throw ArtlogException.badRequest("이번 달 레슨노트 생성 횟수를 모두 사용했습니다.");
+        // }
 
         Note note = Note.builder()
                 .user(user)
@@ -146,7 +147,8 @@ public class NoteService {
         attachSongs(note, user, category, req.songTitles());
 
         Note saved = noteRepository.save(note);
-        user.decreaseRemainingCount();
+        // TODO(테스트용, 복구 필요): 횟수 차감 임시 해제. 아래 주석 해제로 원복.
+        // user.decreaseRemainingCount();
         triggerLessonProcessingAfterCommit(saved.getId());
         return CreatedLessonNote.from(saved);
     }

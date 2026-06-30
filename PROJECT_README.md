@@ -689,7 +689,7 @@ docker compose up --build
 
 ## 13. 최근 주요 변경 (자세한 내용은 DEV_LOG_README.md / RAG_README.md)
 
-- **2026-06-30** 배포 전환 + AI 이미지 슬림화: VPS 빌드 폐지 → GitHub Actions 에서 app/ai 이미지를 빌드해 GHCR 에 push 하고 서버는 pull/up 만 (2GB 인스턴스 빌드 OOM/타임아웃 해소). AI `requirements.txt` 에서 미사용 `langchain-teddynote` 제거(konlpy/JPype1/kiwipiepy/pinecone/pandas/nltk 등 대형 트랜지티브 의존성 제거) + langchain/langgraph 를 0.x 계열로 상한 핀(1.x 자동 업그레이드 깨짐 방지).
+- **2026-06-30** AI 이미지 슬림화: `requirements.txt` 에서 미사용 `langchain-teddynote` 제거(konlpy/JPype1/kiwipiepy/pinecone/pandas/nltk 등 대형 트랜지티브 의존성 제거) + langchain/langgraph 를 0.x 계열로 상한 핀(1.x 자동 업그레이드 깨짐 방지). 배포는 기존 방식(GitHub Actions → SSH → VPS 에서 `docker compose build`) 유지. (참고: VPS 빌드는 2GB/스왑0 인스턴스에서 gradle 빌드 시 OOM/타임아웃 위험이 있어 스왑 추가 권장)
 - **2026-06-30** STT 메모리 최적화: pydub(`AudioSegment.from_file`, 전체 PCM 메모리 로드) 제거 → ffprobe로 길이 측정 + ffmpeg로 16kHz mono 다운샘플하며 청크를 디스크 임시 파일로 직접 추출(워커당 1개씩만 메모리에 적재). 2GB·스왑 0 인스턴스에서 긴 m4a 처리 시 발생하던 OOM(프로세스 재시작) 해결. `requirements.txt`에서 pydub 제거.
 - **2026-06-07** 프론트 배포 분리: 프론트를 단일 VPS 의 Caddy/nginx 호스팅에서 **Vercel** 로 이전. API 는 VPS(`api.artlog.site`)에 유지하고 Caddy 는 `app:8080` 전량 프록시로 단순화. cross-origin 대응으로 refresh 쿠키 SameSite 를 환경변수화(`REFRESH_COOKIE_SAME_SITE`, 기본 Strict / 운영 Lax). prod compose 에서 front 컨테이너 제외(`disabled` 프로필), `front/vercel.json` 복원.
 - **2026-05-05** 배포 모델 전환: Railway/Vercel → AWS EC2 단일 VPS + Docker Compose + Caddy(자동 HTTPS) + systemd. `docker-compose.prod.yml`, `deploy/{Caddyfile,artlog.service,bootstrap.sh,deploy.sh}`, GHA `deploy.yml` 추가. `railway.toml`, `vercel.json` 제거.

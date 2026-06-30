@@ -1,11 +1,8 @@
 # 운영 override. 기본 compose 와 함께 사용:
-#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml pull
-#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
 # - 외부 노출은 caddy 만 (80/443). app/ai/db/redis 모두 docker network 내부에만 노출.
 # - 소스 bind mount 제거. 이미지에 굳혀서 배포.
-# - app/ai 는 VPS 에서 빌드하지 않고 CI(GitHub Actions)가 GHCR 에 올린 이미지를 pull 만 한다.
-#   APP_IMAGE / AI_IMAGE 환경변수로 태그를 핀할 수 있다(미지정 시 :latest).
 # - DB / uploads / Caddy 인증서는 named volume 으로 영속화.
 
 services:
@@ -22,9 +19,9 @@ services:
     ports: !override []
 
   app:
-    image: ${APP_IMAGE:-ghcr.io/jisuuungkim/artlog-app:latest}
-    build: !reset null
-    pull_policy: always
+    build:
+      context: ./back
+      target: prod
     command: !reset null
     ports: !override []
     volumes: !override
@@ -33,9 +30,9 @@ services:
       - ./back/.env.prod
 
   ai:
-    image: ${AI_IMAGE:-ghcr.io/jisuuungkim/artlog-ai:latest}
-    build: !reset null
-    pull_policy: always
+    build:
+      context: ./ai
+      target: prod
     ports: !override []
     volumes: !override
       - uploads:/uploads

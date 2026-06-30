@@ -110,7 +110,7 @@ async def aembed_note_node(state: AgentState) -> dict[str, Any]:
         logger.warning("embed_note_node: EmbeddingStore가 초기화되지 않아 스킵합니다.")
         return {}
 
-    lesson_note = state.get("lesson_note")
+    lesson_note = state.get("lesson_note_result")
     if not lesson_note:
         return {}
 
@@ -246,16 +246,16 @@ async def agenerate_growth_report_node(state: AgentState) -> dict[str, Any]:
     from app.services.embedding_store import _store
     if _store is None:
         logger.warning("generate_growth_report_node: EmbeddingStore가 초기화되지 않아 스킵합니다.")
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     user_id = state.get("user_id")
     note_id = state.get("note_id")
     category_id = state.get("category_id")
     folder_id = state.get("folder_id")
-    lesson_note = state.get("lesson_note")
+    lesson_note = state.get("lesson_note_result")
 
     if not lesson_note:
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     try:
         note_count = await _store.count_distinct_notes(
@@ -265,14 +265,14 @@ async def agenerate_growth_report_node(state: AgentState) -> dict[str, Any]:
         )
     except Exception as e:
         logger.error("노트 수 조회 실패: %s", e)
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     if note_count < GROWTH_REPORT_MIN_NOTES:
         logger.info(
             "성장 리포트 스킵: 누적 레슨노트 %d개 (최소 %d개 필요)",
             note_count, GROWTH_REPORT_MIN_NOTES,
         )
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     note_dict = (
         lesson_note.model_dump()
@@ -286,7 +286,7 @@ async def agenerate_growth_report_node(state: AgentState) -> dict[str, Any]:
         current_texts.append(f"{item.get('title', '')}: {item.get('content', '')}")
 
     if not current_texts:
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     try:
         # 검색 ①: 시계열 구성용 — 유사 과거 피드백 (note_id + created_at 포함)
@@ -320,11 +320,11 @@ async def agenerate_growth_report_node(state: AgentState) -> dict[str, Any]:
         )
     except Exception as e:
         logger.error("벡터 검색 실패: %s", e)
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     if not timeline_results and not improvement_results and not recent_notes:
         logger.info("유사 과거 피드백 없음. 성장 리포트 스킵.")
-        return {"growth_report": None}
+        return {"growth_report_result": None}
 
     current_summary = "\n".join(f"- {t}" for t in current_texts)
     recent_context_text = _build_recent_context_text(recent_notes)
@@ -344,7 +344,7 @@ async def agenerate_growth_report_node(state: AgentState) -> dict[str, Any]:
         ])
         growth_report = result.content.strip()
         logger.info("성장 리포트 생성 완료: user_id=%s, note_id=%s", user_id, note_id)
-        return {"growth_report": growth_report}
+        return {"growth_report_result": growth_report}
     except Exception as e:
         logger.error("성장 리포트 LLM 호출 실패: %s", e)
-        return {"growth_report": None}
+        return {"growth_report_result": None}

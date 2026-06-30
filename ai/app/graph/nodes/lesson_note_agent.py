@@ -219,7 +219,7 @@ def generate_lesson_note_node(state: AgentState) -> dict[str, Any]:
         raise RuntimeError("레슨노트 생성 LLM 호출에 실패했습니다.") from e
 
     return {
-        "lesson_note": lesson_note,
+        "lesson_note_result": lesson_note,
         "retry_count": retry_count + 1,
         "needs_regeneration": False,
     }
@@ -255,7 +255,7 @@ class _LessonNoteReviewOutput(BaseModel):
 
 
 def review_lesson_note_node(state: AgentState) -> dict[str, Any]:
-    lesson_note = state.get("lesson_note")
+    lesson_note = state.get("lesson_note_result")
     analyzed_feedbacks = state.get("analyzed_feedbacks", [])
 
     if not lesson_note:

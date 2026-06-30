@@ -33,12 +33,12 @@ def build_initial_state(body: LessonNoteRequest) -> dict:
         "song_title": body.song_title,
         "keywords": [kw.model_dump() for kw in body.keywords],
         "transcript": "",
-        "lesson_note": None,
+        "lesson_note_result": None,
         "needs_regeneration": False,
         "review_feedback": None,
         "errors": [],
         "retry_count": 0,
-        "growth_report": None,
+        "growth_report_result": None,
         "improvements_noted": [],
     }
 
@@ -88,7 +88,7 @@ async def generate_lesson_note(
             detail=f"워크플로우 실행 중 오류가 발생했습니다: {exc}",
         ) from exc
 
-    lesson_note = final_state.get("lesson_note")
+    lesson_note = final_state.get("lesson_note_result")
     if not lesson_note:
         raise HTTPException(
             status_code=500,
@@ -99,7 +99,7 @@ async def generate_lesson_note(
         session_id=body.session_id,
         transcript=final_state.get("transcript", ""),
         lesson_note=to_note_dict(lesson_note),
-        growth_report=final_state.get("growth_report"),
+        growth_report=final_state.get("growth_report_result"),
     )
 
 
@@ -148,7 +148,7 @@ async def stream_lesson_note_generation(
                     if next_stage and next_stage != last_emitted_stage:
                         yield progress(next_stage)
 
-            lesson_note = state.get("lesson_note")
+            lesson_note = state.get("lesson_note_result")
             if not lesson_note:
                 raise RuntimeError("워크플로우가 레슨노트를 반환하지 않았습니다.")
 
@@ -158,7 +158,7 @@ async def stream_lesson_note_generation(
                     "session_id": body.session_id,
                     "transcript": state.get("transcript", ""),
                     "lesson_note": to_note_dict(lesson_note),
-                    "growth_report": state.get("growth_report"),
+                    "growth_report": state.get("growth_report_result"),
                 },
             )
         except asyncio.CancelledError:

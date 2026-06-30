@@ -59,8 +59,10 @@ class AgentState(TypedDict):
     transcripts: List[str]                      # stt_node 출력 (청크 단위 분리)
 
     # 5단계 파이프라인 매개 상태
+    # 주의: 최신 langgraph 는 "노드 이름 == state 키" 를 금지하므로,
+    # 노드 lesson_note / growth_report 와 겹치지 않게 state 키엔 _result 접미사를 쓴다.
     analyzed_feedbacks: List[AnalyzedFeedback]
-    lesson_note: Optional[LessonNoteResponse]   # 최종 결과물
+    lesson_note_result: Optional[LessonNoteResponse]   # 최종 결과물
     needs_regeneration: bool
     review_feedback: Optional[str]
     errors: List[str]
@@ -68,4 +70,4 @@ class AgentState(TypedDict):
 
     # 성장 리포트
     improvements_noted: List[str]   # extract_improvement_node 출력: 선생님 명시 칭찬/개선 인정 발화
-    growth_report: Optional[str]
+    growth_report_result: Optional[str]
